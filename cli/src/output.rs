@@ -13,6 +13,26 @@ pub fn starting_setup() {
     println!();
 }
 
+pub fn solana_fetching_latest_changes() {
+    println!();
+    println!("          🔵 Solana directory exists.");
+    println!("          🔵 Fetching latest changes...");
+    println!();
+}
+
+pub fn solana_cloning_repo() {
+    println!();
+    println!("          🟣 Solana directory does not exist.");
+    println!("          🟣 Cloning...");
+    println!();
+}
+
+pub fn solana_building() {
+    println!();
+    println!("          🟠 Building Solana...");
+    println!();
+}
+
 pub fn starting_local_validator() {
     println!();
     println!("  🧭 🧭  Starting local validator...");

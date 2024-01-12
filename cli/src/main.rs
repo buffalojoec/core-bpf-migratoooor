@@ -33,11 +33,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             output::start();
 
             // Set up the Solana environment and start the local validator
-            // setup::setup().await?;
             setup::setup();
 
             // Build and deploy the program
-            // let program_id = program::build_and_deploy().await?;
             let program_id = program::build_and_deploy()?;
 
             let client = Client::new().await?;
@@ -45,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Hit the program with a transaction
             client.expect_success(&program_id).await?;
 
-            // // Hit Feature Gate with a transaction
+            // Hit Feature Gate with a transaction
             client
                 .expect_failure_program_missing(&FEATURE_GATE_PROGRAM_ID)
                 .await?;
@@ -58,6 +56,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Hit the program with a transaction
             client.expect_failure_program_missing(&program_id).await?;
+
+            setup::teardown();
 
             output::test_concluded();
         }
