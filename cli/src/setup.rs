@@ -13,7 +13,7 @@ const SOLANA_TEST_VALIDATOR_CLI_PATH: &'static str = "target/debug/solana-test-v
 const SOLANA_TEST_VALIDATOR_LEDGER_PATH: &'static str = "test-ledger";
 
 const UPSTREAM_REPOSITORY: &str = "https://github.com/buffalojoec/solana.git";
-const UPSTREAM_REPOSITORY_BRANCH: &str = "master"; // TODO
+const UPSTREAM_REPOSITORY_BRANCH: &str = "programify-feature-gate-test-01-11";
 
 fn get_solana_path() -> PathBuf {
     repository_path().join(SOLANA_PATH)

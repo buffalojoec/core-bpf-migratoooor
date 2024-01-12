@@ -1,7 +1,8 @@
 use {
     crate::{command::Command, dirs::repository_path, output},
+    dotenv::dotenv,
     solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer},
-    std::path::PathBuf,
+    std::{env, path::PathBuf},
 };
 
 const PROGRAM_NAME: &str = "feature_gate_noop";
@@ -14,12 +15,9 @@ fn get_program_so_path() -> PathBuf {
         .join(PROGRAM_NAME.to_owned() + ".so")
 }
 
-fn get_program_keypair_path() -> PathBuf {
-    repository_path()
-        .join("program")
-        .join("target")
-        .join("deploy")
-        .join("feature_gate_noop-keypair.json")
+fn get_program_keypair_path() -> String {
+    dotenv().ok();
+    env::var("PROGRAM_KEYPAIR_PATH").expect("PROGRAM_KEYPAIR_PATH variable")
 }
 
 fn get_cargo_manifest_path() -> PathBuf {
@@ -36,7 +34,11 @@ fn build() {
 /// Deploy the program
 fn deploy() {
     let so_path = get_program_so_path();
-    let deploy_args = format!("program deploy -ul {}", so_path.display());
+    let deploy_args = format!(
+        "program deploy -ul --program-id {} {}",
+        get_program_keypair_path(),
+        so_path.display(),
+    );
     Command::Solana.command(&deploy_args);
 }
 
