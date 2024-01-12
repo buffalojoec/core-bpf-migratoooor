@@ -7,7 +7,7 @@ const SLOTS_PER_EPOCH: u64 = 100;
 
 const SOLANA_PATH: &str = ".solana";
 
-const _SOLANA_CLI_PATH: &'static str = "target/debug/solana";
+const SOLANA_CLI_PATH: &'static str = "target/debug/solana";
 const SOLANA_TEST_VALIDATOR_CLI_PATH: &'static str = "target/debug/solana-test-validator";
 
 const SOLANA_TEST_VALIDATOR_LEDGER_PATH: &'static str = "test-ledger";
@@ -23,8 +23,8 @@ fn get_solana_cargo_manifest_path() -> PathBuf {
     get_solana_path().join("Cargo.toml")
 }
 
-pub fn _get_solana_cli_path() -> PathBuf {
-    get_solana_path().join(_SOLANA_CLI_PATH)
+pub fn get_solana_cli_path() -> PathBuf {
+    get_solana_path().join(SOLANA_CLI_PATH)
 }
 
 fn get_solana_test_validator_cli_path() -> PathBuf {
