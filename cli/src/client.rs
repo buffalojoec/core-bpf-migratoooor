@@ -39,9 +39,36 @@ impl Client {
         Ok(client)
     }
 
-    async fn transaction(&self, program_id: &Pubkey) -> Transaction {
+    pub async fn poll_for_next_epoch(&self) -> Result<(), ClientError> {
+        let epoch_info = self.rpc_client.get_epoch_info().await?;
+        let current = epoch_info.epoch;
+        loop {
+            let epoch_info = self.rpc_client.get_epoch_info().await?;
+            if epoch_info.epoch > current {
+                return Ok(());
+            }
+            std::thread::sleep(std::time::Duration::from_secs(5));
+        }
+    }
+
+    pub async fn poll_slots(&self, num_slots: u64) -> Result<(), ClientError> {
+        let slot = self.rpc_client.get_slot().await?;
+        loop {
+            let current_slot = self.rpc_client.get_slot().await?;
+            if current_slot > slot + num_slots {
+                return Ok(());
+            }
+            std::thread::sleep(std::time::Duration::from_secs(1));
+        }
+    }
+
+    async fn send_transaction(
+        &self,
+        program_id: &Pubkey,
+    ) -> Result<Signature, Option<TransactionError>> {
+        output::sending_transaction(program_id);
         let recent_blockhash = self.rpc_client.get_latest_blockhash().await.unwrap();
-        Transaction::new_signed_with_payer(
+        let transaction = Transaction::new_signed_with_payer(
             &[Instruction {
                 program_id: *program_id,
                 accounts: vec![],
@@ -50,15 +77,7 @@ impl Client {
             Some(&self.fee_payer.pubkey()),
             &[&self.fee_payer],
             recent_blockhash,
-        )
-    }
-
-    async fn send_transaction(
-        &self,
-        program_id: &Pubkey,
-    ) -> Result<Signature, Option<TransactionError>> {
-        output::sending_transaction(program_id);
-        let transaction = self.transaction(program_id).await;
+        );
         self.rpc_client
             .send_and_confirm_transaction(&transaction)
             .await

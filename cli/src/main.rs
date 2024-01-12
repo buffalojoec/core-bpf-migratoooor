@@ -51,8 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .await?;
 
             // Activate the feature
-            // feature::activate_programify_feature_gate().await?;
-            feature::activate_programify_feature_gate();
+            feature::activate_programify_feature_gate(&client).await?;
 
             // Hit Feature Gate with a transaction
             client.expect_success(&FEATURE_GATE_PROGRAM_ID).await?;
