@@ -1,22 +1,34 @@
-pub struct Command;
-impl Command {
-    const SOLANA_ALIAS: &'static str = "solana"; // TODO
+use {
+    crate::dirs::repository_path,
+    serde::{Deserialize, Serialize},
+    std::path::Path,
+};
 
-    fn run_command(command: &str, args: &str) {
-        let command = format!("{} {}", command, args);
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Command {
+    Git,
+    Cargo,
+    Solana,
+    SolanaTestValidator,
+}
+impl Command {
+    fn command_inner(&self, args: &str, dir: &Path) {
+        let command = format!("{} {}", serde_json::to_string(&self).unwrap(), args);
         let status = std::process::Command::new("sh")
             .arg("-c")
             .arg(command)
+            .current_dir(dir)
             .status()
             .expect("failed to execute process");
         assert!(status.success());
     }
 
-    pub fn cargo(args: &str) {
-        Self::run_command("cargo", args);
+    pub fn command(&self, args: &str) {
+        self.command_inner(args, &repository_path())
     }
 
-    pub fn solana(args: &str) {
-        Self::run_command(Self::SOLANA_ALIAS, args);
+    pub fn _command_with_dir(&self, args: &str, dir: &Path) {
+        self.command_inner(args, dir)
     }
 }

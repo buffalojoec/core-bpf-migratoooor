@@ -30,14 +30,14 @@ fn get_cargo_manifest_path() -> PathBuf {
 fn build() {
     let manifest_path = get_cargo_manifest_path();
     let build_args = format!("build-sbf --manifest-path {}", manifest_path.display());
-    Command::cargo(&build_args);
+    Command::Cargo.command(&build_args);
 }
 
 /// Deploy the program
 fn deploy() {
     let so_path = get_program_so_path();
     let deploy_args = format!("program deploy -ul {}", so_path.display());
-    Command::solana(&deploy_args);
+    Command::Solana.command(&deploy_args);
 }
 
 /// Read the program ID
