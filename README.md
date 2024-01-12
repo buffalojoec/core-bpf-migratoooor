@@ -15,9 +15,8 @@ To facilitate testing, this repository has a simple CLI for sending
 transactions to `Feature111111111111111111111111111111111111` and testing the
 response recieved to ensure the migration was successful.
 
-```
-programify-feature-gate start
-```
+### To Run the Test
 
-Note: the CLI pulls from
-`github.com/buffalojoec/solana/tree/programify-feature-gate-test`.
+```
+./start
+```
