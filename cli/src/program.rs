@@ -8,6 +8,7 @@ const PROGRAM_NAME: &str = "feature_gate_noop";
 
 fn get_program_so_path() -> PathBuf {
     repository_path()
+        .join("program")
         .join("target")
         .join("deploy")
         .join(PROGRAM_NAME.to_owned() + ".so")
@@ -15,13 +16,14 @@ fn get_program_so_path() -> PathBuf {
 
 fn get_program_keypair_path() -> PathBuf {
     repository_path()
+        .join("program")
         .join("target")
         .join("deploy")
         .join("feature_gate_noop-keypair.json")
 }
 
 fn get_cargo_manifest_path() -> PathBuf {
-    repository_path().join("Cargo.toml")
+    repository_path().join("program").join("Cargo.toml")
 }
 
 /// Build the program
