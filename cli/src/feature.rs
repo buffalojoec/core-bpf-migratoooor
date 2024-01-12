@@ -8,7 +8,7 @@ use {
 
 const FEATURE_CLUSTER: &str = "development"; // Localnet
 
-fn get_feature_keypair_path() -> String {
+pub fn get_feature_keypair_path() -> String {
     dotenv().ok();
     env::var("FEATURE_KEYPAIR_PATH").expect("FEATURE_KEYPAIR_PATH variable")
 }

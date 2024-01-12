@@ -2,4 +2,4 @@
 
 cargo build --manifest-path ./cli/Cargo.toml
 
-./cli/target/debug/programify-feature-gate start
+./cli/target/debug/programify-feature-gate start $1

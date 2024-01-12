@@ -1,9 +1,15 @@
 use {
-    crate::{command::Command, dirs::repository_path, output},
+    crate::{
+        command::Command,
+        dirs::{read_pubkey_from_keypair_path, repository_path},
+        feature::get_feature_keypair_path,
+        output,
+    },
     std::path::PathBuf,
 };
 
-const SLOTS_PER_EPOCH: u64 = 100;
+// Too small of a value can make program deploys choppy
+const SLOTS_PER_EPOCH: u64 = 150;
 
 const SOLANA_PATH: &str = ".solana";
 
@@ -32,7 +38,7 @@ fn get_solana_test_validator_cli_path() -> PathBuf {
 }
 
 fn get_solana_test_validator_ledger_path() -> PathBuf {
-    get_solana_path().join(SOLANA_TEST_VALIDATOR_LEDGER_PATH)
+    repository_path().join(SOLANA_TEST_VALIDATOR_LEDGER_PATH)
 }
 
 fn fetch_changes() {
@@ -61,13 +67,34 @@ fn build_solana() {
     Command::raw_command_with_dir("./cargo", &build_args, &get_solana_path())
 }
 
-fn start_test_validator() {
+fn start_test_validator(executable_features: bool) {
     output::starting_local_validator();
-    let args = format!(
-        "--slots-per-epoch {} --ledger {}",
-        SLOTS_PER_EPOCH,
-        get_solana_test_validator_ledger_path().display(),
-    );
+    let programify_feature_keypair_path = get_feature_keypair_path();
+    let programify_feature_id =
+        read_pubkey_from_keypair_path(&programify_feature_keypair_path).unwrap();
+
+    let args = if executable_features {
+        format!(
+            "--slots-per-epoch {} --ledger {} --deactivate-feature {}",
+            SLOTS_PER_EPOCH,
+            get_solana_test_validator_ledger_path().display(),
+            programify_feature_id,
+        )
+    } else {
+        let disable_bpf_loader_instructions_feature_id =
+            "7WeS1vfPRgeeoXArLh7879YcB9mgE9ktjPDtajXeWfXn";
+        let deprecate_executable_meta_update_in_bpf_loader_feature_id =
+            "k6uR1J9VtKJnTukBV2Eo15BEy434MBg8bT6hHQgmU8v";
+        format!(
+            "--slots-per-epoch {} --ledger {} --deactivate-feature {} {} {}",
+            SLOTS_PER_EPOCH,
+            get_solana_test_validator_ledger_path().display(),
+            programify_feature_id,
+            disable_bpf_loader_instructions_feature_id,
+            deprecate_executable_meta_update_in_bpf_loader_feature_id,
+        )
+    };
+
     Command::raw_command_detached_with_dir(
         get_solana_test_validator_cli_path().to_str().unwrap(),
         &args,
@@ -84,12 +111,12 @@ fn delete_test_validator_ledger() {
     }
 }
 
-pub fn setup() {
+pub fn setup(executable_features: bool) {
     output::starting_setup();
     delete_test_validator_ledger();
     fetch_changes();
     build_solana();
-    start_test_validator();
+    start_test_validator(executable_features);
 }
 
 pub fn teardown() {

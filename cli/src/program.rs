@@ -1,7 +1,11 @@
 use {
-    crate::{command::Command, dirs::repository_path, output},
+    crate::{
+        command::Command,
+        dirs::{read_pubkey_from_keypair_path, repository_path},
+        output,
+    },
     dotenv::dotenv,
-    solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer},
+    solana_sdk::pubkey::Pubkey,
     std::{env, path::PathBuf},
 };
 
@@ -45,10 +49,7 @@ fn deploy() {
 /// Read the program ID
 fn read_program_id() -> Result<Pubkey, Box<dyn std::error::Error>> {
     let keypair_path = get_program_keypair_path();
-    let file_contents = std::fs::read_to_string(keypair_path)?;
-    let bytes: Vec<u8> = serde_json::from_str(&file_contents)?;
-    let keypair = Keypair::from_bytes(&bytes)?;
-    Ok(keypair.pubkey())
+    read_pubkey_from_keypair_path(&keypair_path)
 }
 
 pub fn build_and_deploy() -> Result<Pubkey, Box<dyn std::error::Error>> {

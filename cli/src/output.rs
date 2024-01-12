@@ -1,10 +1,14 @@
 use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::TransactionError};
 
-pub fn start() {
+pub fn start(executable_features: bool) {
     println!();
     println!();
     println!("  🚨 🚨  Starting test for Programify Feature Gate...");
     println!();
+    if executable_features {
+        println!("  🔺 🔺  Executable features enabled.");
+        println!();
+    }
 }
 
 pub fn starting_setup() {

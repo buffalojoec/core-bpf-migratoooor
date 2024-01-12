@@ -17,6 +17,16 @@ response recieved to ensure the migration was successful.
 
 ### To Run the Test
 
+See https://github.com/solana-labs/solana/issues/33970.
+
+If you'd like the features *enabled* for deprecating the `executable` flag:
+
+```
+./start -e
+```
+
+If not:
+
 ```
 ./start
 ```
