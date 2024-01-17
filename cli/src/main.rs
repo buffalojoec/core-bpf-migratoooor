@@ -1,4 +1,4 @@
-//! Simple testing CLI for Programify Feature Gate
+//! Simple testing CLI for Programify Address Lookup Table
 
 mod client;
 mod command;
@@ -11,7 +11,7 @@ mod setup;
 use {
     crate::client::Client,
     clap::{Parser, Subcommand},
-    solana_sdk::feature::ID as FEATURE_GATE_PROGRAM_ID,
+    solana_sdk::address_lookup_table::program::ID as ADDRESS_LOOKUP_TABLE_PROGRAM_ID,
 };
 
 #[derive(Subcommand)]
@@ -48,22 +48,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let client = Client::new().await?;
 
-            // Hit the program with a transaction
-            client.expect_success(&program_id).await?;
-
-            // Hit Feature Gate with a transaction
+            // Hit Address Lookup Table with a transaction
             client
-                .expect_failure_program_missing(&FEATURE_GATE_PROGRAM_ID)
+                .expect_success(&ADDRESS_LOOKUP_TABLE_PROGRAM_ID)
+                .await?;
+
+            // Hit the program with a transaction
+            client
+                .expect_failure_invalid_instruction(&program_id)
                 .await?;
 
             // Activate the feature
-            feature::activate_programify_feature_gate(&client).await?;
-
-            // Hit Feature Gate with a transaction
-            client.expect_success(&FEATURE_GATE_PROGRAM_ID).await?;
+            feature::activate_migration_feature_gate(&client).await?;
 
             // Hit the program with a transaction
             client.expect_failure_program_missing(&program_id).await?;
+
+            // Hit Address Lookup Table with a transaction
+            client
+                .expect_failure_invalid_instruction(&ADDRESS_LOOKUP_TABLE_PROGRAM_ID)
+                .await?;
 
             setup::teardown();
 

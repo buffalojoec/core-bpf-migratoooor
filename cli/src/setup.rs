@@ -10,6 +10,7 @@ use {
 
 // Too small of a value can make program deploys choppy
 const SLOTS_PER_EPOCH: u64 = 150;
+pub const WARP_SLOT: u64 = 123;
 
 const SOLANA_PATH: &str = ".solana";
 
@@ -19,7 +20,7 @@ const SOLANA_TEST_VALIDATOR_CLI_PATH: &'static str = "target/debug/solana-test-v
 const SOLANA_TEST_VALIDATOR_LEDGER_PATH: &'static str = "test-ledger";
 
 const UPSTREAM_REPOSITORY: &str = "https://github.com/buffalojoec/solana.git";
-const UPSTREAM_REPOSITORY_BRANCH: &str = "programify-feature-gate-test-01-11";
+const UPSTREAM_REPOSITORY_BRANCH: &str = "migrate-address-lookup-table-test-01-16";
 
 fn get_solana_path() -> PathBuf {
     repository_path().join(SOLANA_PATH)
@@ -75,9 +76,10 @@ fn start_test_validator(executable_features: bool) {
 
     let args = if executable_features {
         format!(
-            "--slots-per-epoch {} --ledger {} --deactivate-feature {}",
+            "--slots-per-epoch {} --ledger {} --warp-slot {} --deactivate-feature {}",
             SLOTS_PER_EPOCH,
             get_solana_test_validator_ledger_path().display(),
+            WARP_SLOT,
             programify_feature_id,
         )
     } else {
@@ -86,9 +88,10 @@ fn start_test_validator(executable_features: bool) {
         let deprecate_executable_meta_update_in_bpf_loader_feature_id =
             "k6uR1J9VtKJnTukBV2Eo15BEy434MBg8bT6hHQgmU8v";
         format!(
-            "--slots-per-epoch {} --ledger {} --deactivate-feature {} {} {}",
+            "--slots-per-epoch {} --ledger {} --warp-slot {} --deactivate-feature {} {} {}",
             SLOTS_PER_EPOCH,
             get_solana_test_validator_ledger_path().display(),
+            WARP_SLOT,
             programify_feature_id,
             disable_bpf_loader_instructions_feature_id,
             deprecate_executable_meta_update_in_bpf_loader_feature_id,
@@ -107,8 +110,14 @@ fn start_test_validator(executable_features: bool) {
 fn delete_test_validator_ledger() {
     let ledger_path = get_solana_test_validator_ledger_path();
     if ledger_path.exists() {
-        std::fs::remove_dir_all(ledger_path).unwrap();
+        if let Err(err) = std::fs::remove_dir_all(ledger_path) {
+            panic!(
+                "{}",
+                format!("Failed to delete test validator ledger: {}", err)
+            );
+        }
     }
+    std::thread::sleep(std::time::Duration::from_secs(5));
 }
 
 pub fn setup(executable_features: bool) {

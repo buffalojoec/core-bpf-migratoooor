@@ -13,7 +13,7 @@ pub fn get_feature_keypair_path() -> String {
     env::var("FEATURE_KEYPAIR_PATH").expect("FEATURE_KEYPAIR_PATH variable")
 }
 
-pub async fn activate_programify_feature_gate(
+pub async fn activate_migration_feature_gate(
     client: &Client,
 ) -> Result<(), Box<dyn std::error::Error>> {
     output::starting_feature_activation();

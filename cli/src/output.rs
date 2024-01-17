@@ -3,7 +3,7 @@ use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::TransactionE
 pub fn start(executable_features: bool) {
     println!();
     println!();
-    println!("  🚨 🚨  Starting test for Programify Feature Gate...");
+    println!("  🚨 🚨  Starting test for Migrate Address Lookup Table...");
     println!();
     if executable_features {
         println!("  🔺 🔺  Executable features enabled.");
@@ -51,7 +51,7 @@ pub fn starting_build_and_deploy() {
 
 pub fn starting_feature_activation() {
     println!();
-    println!("  🚀 🚀  Activating Programify Feature Gate feature...");
+    println!("  🚀 🚀  Activating Migrate Address Lookup Table feature...");
     println!();
 }
 
@@ -86,11 +86,6 @@ pub fn expect_success(signature: &Signature) {
     println!();
 }
 
-pub fn expected_return_data(data: &[u8]) {
-    println!("          ✅ Got expected return data: {:?}", data);
-    println!();
-}
-
 pub fn err_expect_success_got_transaction_error(err: &TransactionError) {
     println!();
     println!(
@@ -100,15 +95,15 @@ pub fn err_expect_success_got_transaction_error(err: &TransactionError) {
     println!();
 }
 
-pub fn expect_failure_program_missing(err: &TransactionError) {
+pub fn expect_failure(err: &TransactionError) {
     println!();
     println!("          ✅ Got expected transaction error: {:?}", err);
     println!();
 }
 
-pub fn err_expected_failure_program_missing_but_got_success() {
+pub fn err_expected_failure_but_got_success() {
     println!();
-    println!("          ❌ Expected failure on program missing, but got success");
+    println!("          ❌ Expected failure, but got success");
     println!();
 }
 
