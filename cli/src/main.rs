@@ -69,6 +69,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .expect_failure_invalid_instruction(&ADDRESS_LOOKUP_TABLE_PROGRAM_ID)
                 .await?;
 
+            // Wait another epoch
+            client.poll_for_next_epoch().await?;
+            client.poll_slots(5).await?;
+
+            // Hit the program with a transaction
+            client.expect_failure_program_missing(&program_id).await?;
+
+            // Hit Address Lookup Table with a transaction
+            client
+                .expect_failure_invalid_instruction(&ADDRESS_LOOKUP_TABLE_PROGRAM_ID)
+                .await?;
+            
             setup::teardown();
 
             output::test_concluded();
