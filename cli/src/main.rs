@@ -65,6 +65,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Hit the program with a transaction
             client.expect_failure_program_missing(&program_id).await?;
 
+            // Wait another epoch
+            client.poll_for_next_epoch().await?;
+            client.poll_slots(5).await?;
+
+            // Hit Feature Gate with a transaction
+            client.expect_success(&FEATURE_GATE_PROGRAM_ID).await?;
+
+            // Hit the program with a transaction
+            client.expect_failure_program_missing(&program_id).await?;
+
             setup::teardown();
 
             output::test_concluded();
