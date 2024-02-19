@@ -76,6 +76,12 @@ pub fn sending_transaction(program_id: &Pubkey) {
     println!();
 }
 
+pub fn sending_versioned_transaction() {
+    println!();
+    println!("      ⭐️ ⭐️  Sending versioned transaction...");
+    println!();
+}
+
 pub fn expect_success(signature: &Signature) {
     println!();
     println!("          ✅ Got expected success: {:?}", signature);

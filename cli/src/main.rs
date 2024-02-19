@@ -72,7 +72,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             client
                 .expect_failure_invalid_instruction(&ADDRESS_LOOKUP_TABLE_PROGRAM_ID)
                 .await?;
-            
+
+            // Send a versioned transaction using a lookup table
+            client.expect_success_versioned_transaction().await?;
+
             setup::teardown();
 
             output::test_concluded();
