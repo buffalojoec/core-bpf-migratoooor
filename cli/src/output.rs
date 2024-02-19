@@ -1,14 +1,10 @@
 use solana_sdk::{pubkey::Pubkey, signature::Signature, transaction::TransactionError};
 
-pub fn start(executable_features: bool) {
+pub fn start() {
     println!();
     println!();
     println!("  🚨 🚨  Starting test for Migrate Address Lookup Table...");
     println!();
-    if executable_features {
-        println!("  🔺 🔺  Executable features enabled.");
-        println!();
-    }
 }
 
 pub fn starting_setup() {

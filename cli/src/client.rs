@@ -27,7 +27,7 @@ impl Client {
             CommitmentConfig::confirmed(),
         );
         let airdrop_signature = rpc_client
-            .request_airdrop(&fee_payer.pubkey(), 1000000000)
+            .request_airdrop(&fee_payer.pubkey(), 1_000_000_000)
             .await?;
         let client = Self {
             fee_payer,

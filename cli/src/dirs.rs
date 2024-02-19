@@ -4,7 +4,7 @@ use {
 };
 
 const HOME_DIR: &str = "/Users/joesol";
-const REPOSITORY_PATH: &str = "labs/programify-feature-gate";
+const REPOSITORY_PATH: &str = "anza/programify-feature-gate";
 
 pub fn home_dir() -> PathBuf {
     Path::new(HOME_DIR).to_owned()

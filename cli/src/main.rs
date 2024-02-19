@@ -16,13 +16,7 @@ use {
 
 #[derive(Subcommand)]
 enum SubCommand {
-    Start {
-        /// Enables the features surrounding deprecating the `executable` flag
-        /// on accounts.
-        /// See `https://github.com/solana-labs/solana/issues/33970`
-        #[clap(short = 'e', long, action)]
-        executable_features: bool,
-    },
+    Start,
 }
 
 #[derive(Parser)]
@@ -35,13 +29,11 @@ struct Cli {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     match cli.command {
-        SubCommand::Start {
-            executable_features,
-        } => {
-            output::start(executable_features);
+        SubCommand::Start => {
+            output::start();
 
             // Set up the Solana environment and start the local validator
-            setup::setup(executable_features);
+            setup::setup();
 
             // Build and deploy the program
             let program_id = program::build_and_deploy()?;
