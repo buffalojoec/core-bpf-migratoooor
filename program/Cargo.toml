@@ -8,4 +8,4 @@ crate-type = ["cdylib", "lib"]
 name = "feature_gate_noop"
 
 [dependencies]
-solana-program = "=1.17.15"
+solana-program = "1.18.0"
