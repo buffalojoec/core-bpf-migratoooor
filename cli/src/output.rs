@@ -88,6 +88,22 @@ pub fn expect_success(signature: &Signature) {
     println!();
 }
 
+pub fn expected_no_return_data() {
+    println!("          ✅ Got expected null return data");
+    println!();
+}
+
+pub fn expected_return_data(data: &[u8]) {
+    println!("          ✅ Got expected return data: {:?}", data);
+    println!();
+}
+
+pub fn err_unexpected_return_data() {
+    println!();
+    println!("          ❌ Got unexpected return data");
+    println!();
+}
+
 pub fn err_expect_success_got_transaction_error(err: &TransactionError) {
     println!();
     println!(

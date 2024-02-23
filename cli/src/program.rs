@@ -9,7 +9,7 @@ use {
     std::{env, path::PathBuf},
 };
 
-const PROGRAM_NAME: &str = "feature_gate_noop";
+const PROGRAM_NAME: &str = "solana_programs_address_lookup_table";
 
 fn get_program_so_path() -> PathBuf {
     repository_path()

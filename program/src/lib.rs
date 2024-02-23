@@ -1,21 +1,22 @@
-use solana_program::{
-    account_info::AccountInfo,
-    entrypoint,
-    entrypoint::ProgramResult,
-    program_error::ProgramError,
-    pubkey::Pubkey,
-};
+//! Address Lookup Table Program
 
-entrypoint!(noop);
+#[cfg(not(feature = "no-entrypoint"))]
+mod entrypoint;
+pub mod error;
+pub mod instruction;
+pub mod processor;
+pub mod state;
 
-pub fn noop(
-    _program_id: &Pubkey,
-    _accounts: &[AccountInfo],
-    instruction_data: &[u8],
-) -> ProgramResult {
-    if instruction_data.len() == 0 {
-        Ok(())
-    } else {
-        Err(ProgramError::InvalidArgument)
-    }
+// TODO: Program-test will not overwrite existing built-ins
+// See https://github.com/solana-labs/solana/pull/35242
+solana_program::declare_id!("AddressLookupTab1e1111111111111111111111111");
+// solana_program::declare_id!("AaoNx79M6YE3DcXfrRN4nmBcQvQPqdpowi6uEESuJdnm");
+
+/// The definition of address lookup table accounts.
+///
+/// As used by the `crate::message::v0` message format.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct AddressLookupTableAccount {
+    pub key: solana_program::pubkey::Pubkey,
+    pub addresses: Vec<solana_program::pubkey::Pubkey>,
 }

@@ -1,9 +1,6 @@
 use {
     crate::{output, setup::WARP_SLOT},
-    solana_client::{
-        nonblocking::rpc_client::RpcClient, rpc_client::SerializableTransaction,
-        rpc_config::RpcSendTransactionConfig,
-    },
+    solana_client::{nonblocking::rpc_client::RpcClient, rpc_client::SerializableTransaction},
     solana_sdk::{
         address_lookup_table,
         commitment_config::CommitmentConfig,
@@ -14,7 +11,10 @@ use {
         signer::Signer,
         transaction::{Transaction, TransactionError, VersionedTransaction},
     },
+    solana_transaction_status::{option_serializer::OptionSerializer, UiTransactionEncoding},
 };
+
+const EXPECTED_RETURN_DATA: &[u8] = b"I am not a builtin";
 
 type ClientError = Box<dyn std::error::Error>;
 
@@ -139,10 +139,52 @@ impl Client {
         }
     }
 
-    pub async fn expect_success(&self, program_id: &Pubkey) -> Result<(), ClientError> {
+    pub async fn check_return_data(
+        &self,
+        signature: &Signature,
+        should_exist: bool,
+    ) -> Result<(), ClientError> {
+        self.confirm_transaction(signature).await?;
+        let transaction = self
+            .rpc_client
+            .get_transaction(signature, UiTransactionEncoding::Base64)
+            .await?;
+        if let Some(meta) = transaction.transaction.meta {
+            if let OptionSerializer::Some(ui_return_data) = meta.return_data {
+                if should_exist {
+                    let return_data_base64 = ui_return_data.data.0;
+                    #[allow(deprecated)]
+                    let return_data_bytes = base64::decode(return_data_base64)?;
+                    if return_data_bytes == EXPECTED_RETURN_DATA {
+                        output::expected_return_data(&return_data_bytes);
+                    } else {
+                        output::err_unexpected_return_data();
+                    }
+                } else {
+                    output::err_unexpected_return_data();
+                    println!("Return data: {:?}", ui_return_data.data.0);
+                }
+            } else {
+                if !should_exist {
+                    output::expected_no_return_data();
+                } else {
+                    output::err_unexpected_return_data();
+                }
+            }
+        }
+        Ok(())
+    }
+
+    async fn expect_success(
+        &self,
+        program_id: &Pubkey,
+        return_data_should_exist: bool,
+    ) -> Result<(), ClientError> {
         match self.send_transaction(program_id).await {
             Ok(signature) => {
                 output::expect_success(&signature);
+                self.check_return_data(&signature, return_data_should_exist)
+                    .await?;
                 Ok(())
             }
             Err(err) => {
@@ -158,6 +200,20 @@ impl Client {
                 Err(output::get_test_terminated_err())
             }
         }
+    }
+
+    pub async fn expect_success_with_return_data(
+        &self,
+        program_id: &Pubkey,
+    ) -> Result<(), ClientError> {
+        self.expect_success(program_id, true).await
+    }
+
+    pub async fn expect_success_no_return_data(
+        &self,
+        program_id: &Pubkey,
+    ) -> Result<(), ClientError> {
+        self.expect_success(program_id, false).await
     }
 
     pub async fn expect_failure_invalid_instruction(
