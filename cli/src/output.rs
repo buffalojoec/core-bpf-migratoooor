@@ -76,6 +76,12 @@ pub fn sending_transaction(program_id: &Pubkey) {
     println!();
 }
 
+pub fn warping_to_next_epoch() {
+    println!();
+    println!("      ⏩ ⏩  Warping to next epoch...");
+    println!();
+}
+
 pub fn expect_success(signature: &Signature) {
     println!();
     println!("          ✅ Got expected success: {:?}", signature);

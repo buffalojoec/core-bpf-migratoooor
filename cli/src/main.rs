@@ -58,6 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             client.expect_failure_program_missing(&program_id).await?;
 
             // Wait another epoch
+            output::warping_to_next_epoch();
             client.poll_for_next_epoch().await?;
             client.poll_slots(5).await?;
 
