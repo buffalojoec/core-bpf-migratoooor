@@ -9,7 +9,7 @@ use {
     std::{env, path::PathBuf},
 };
 
-const PROGRAM_NAME: &str = "solana_programs_address_lookup_table";
+const PROGRAM_NAME: &str = "scbpf_address_lookup_table";
 
 fn get_program_so_path() -> PathBuf {
     repository_path()
@@ -31,7 +31,10 @@ fn get_cargo_manifest_path() -> PathBuf {
 /// Build the program
 fn build() {
     let manifest_path = get_cargo_manifest_path();
-    let build_args = format!("build-sbf --manifest-path {}", manifest_path.display());
+    let build_args = format!(
+        "build-sbf --manifest-path {} --features bpf-entrypoint",
+        manifest_path.display()
+    );
     Command::Cargo.command(&build_args);
 }
 

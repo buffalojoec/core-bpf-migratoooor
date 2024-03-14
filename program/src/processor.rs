@@ -1,10 +1,9 @@
 //! Program processor
 
-#[cfg(not(feature = "relax-authority-checks-disabled"))]
-use crate::check_id;
 use {
     crate::{
-        instruction::ProgramInstruction,
+        check_id,
+        instruction::AddressLookupTableInstruction,
         state::{
             AddressLookupTable, LookupTableStatus, ProgramState, LOOKUP_TABLE_MAX_ADDRESSES,
             LOOKUP_TABLE_META_SIZE,
@@ -25,16 +24,25 @@ use {
     },
 };
 
+// [Core BPF]: Locally-implemented
+// `solana_sdk::program_utils::limited_deserialize`.
 fn limited_deserialize<T>(input: &[u8]) -> Result<T, ProgramError>
 where
     T: serde::de::DeserializeOwned,
 {
     solana_program::program_utils::limited_deserialize(
-        input, 1232, // See `solana_sdk::packet::PACKET_DATA_SIZE`
+        input, 1232, // [Core BPF]: See `solana_sdk::packet::PACKET_DATA_SIZE`
     )
     .map_err(|_| ProgramError::InvalidInstructionData)
 }
 
+// [Core BPF]: Feature "FKAcEvNgSY79RpqsPNUV5gDyumopH4cEHqUxyfm8b8Ap"
+// (relax_authority_signer_check_for_lookup_table_creation) is now enabled on
+// all clusters, so the relevant checks have not been included in the Core BPF
+// implementation.
+// - Testnet:       Epoch 586
+// - Devnet:        Epoch 591
+// - Mainnet-Beta:  epoch 577
 fn process_create_lookup_table(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -48,54 +56,14 @@ fn process_create_lookup_table(
     let payer_info = next_account_info(accounts_iter)?;
     let _system_program_info = next_account_info(accounts_iter)?;
 
-    // Feature "FKAcEvNgSY79RpqsPNUV5gDyumopH4cEHqUxyfm8b8Ap"
-    // (relax_authority_signer_check_for_lookup_table_creation) is enabled on
-    // only testnet and devnet, but not mainnet-beta.
-    // - Testnet:       Epoch 586
-    // - Devnet:        Epoch 591
-    // - Mainnet-Beta:  Inactive
-    //
-    // At the time of this writing, this feature is first on the list for the
-    // Mainnet-Beta Feature Gate Activation Schedule.
-    // https://github.com/solana-labs/solana/wiki/Feature-Gate-Activation-Schedule
-    //
-    // It's my recommendation that we wait until after this feature is
-    // activated on Mainnet-Beta before migrating Address Lookup Table to BPF,
-    // removing these checks beforehand.
-    //
-    // Alternatively, we can fall back to this proposal if the feature is not
-    // activated by the time we want to migrate to BPF.
-    // https://github.com/solana-foundation/solana-improvement-documents/pull/99
-    //
-    // In the meantime, in order to fully test the BPF version of the program,
-    // I've gated this functionality behind a feature flag.
-    // `relax-authority-checks-disabled` should be provided to `cargo test-sbf`
-    // in order to run the tests that depend on the checks being present, which
-    // will be disabled once the feature is activated on Mainnet-Beta.
-    //
-    // Check not required after "FKAcEvNgSY79RpqsPNUV5gDyumopH4cEHqUxyfm8b8Ap"
-    // is activated on mainnet-beta.
-    #[cfg(feature = "relax-authority-checks-disabled")]
-    if !lookup_table_info.data_is_empty() {
-        msg!("Table account must not be allocated");
-        return Err(ProgramError::AccountAlreadyInitialized);
-    }
-
-    // Check not required after "FKAcEvNgSY79RpqsPNUV5gDyumopH4cEHqUxyfm8b8Ap"
-    // is activated on mainnet-beta.
-    #[cfg(feature = "relax-authority-checks-disabled")]
-    if !authority_info.is_signer {
-        msg!("Authority account must be a signer");
-        return Err(ProgramError::MissingRequiredSignature);
-    }
-
     if !payer_info.is_signer {
         msg!("Payer account must be a signer");
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // Since the `SlotHashes` sysvar is not available to BPF programs, checking
-    // if a slot is a valid recent slot must be done differently.
+    // [Core BPF]: Since the `SlotHashes` sysvar is not available to BPF
+    // programs, checking if a slot is a valid recent slot must be done
+    // differently.
     // The `SlotHashes` sysvar stores up to `512` recent slots (`MAX_ENTRIES`).
     // We can instead use the `Clock` sysvar and do this math manually.
     //
@@ -104,7 +72,7 @@ fn process_create_lookup_table(
     let derivation_slot = {
         let clock = <Clock as Sysvar>::get()?;
         let oldest_possible_slot = clock.slot.saturating_sub(MAX_ENTRIES as u64);
-        if untrusted_recent_slot > oldest_possible_slot && untrusted_recent_slot <= clock.slot {
+        if untrusted_recent_slot >= oldest_possible_slot && untrusted_recent_slot < clock.slot {
             Ok(untrusted_recent_slot)
         } else {
             msg!("{} is not a recent slot", untrusted_recent_slot);
@@ -114,14 +82,12 @@ fn process_create_lookup_table(
 
     // Use a derived address to ensure that an address table can never be
     // initialized more than once at the same address.
-    let derived_table_key = Pubkey::create_program_address(
-        &[
-            authority_info.key.as_ref(),
-            &derivation_slot.to_le_bytes(),
-            &[bump_seed],
-        ],
-        program_id,
-    )?;
+    let derived_table_seeds = &[
+        authority_info.key.as_ref(),
+        &derivation_slot.to_le_bytes(),
+        &[bump_seed],
+    ];
+    let derived_table_key = Pubkey::create_program_address(derived_table_seeds, program_id)?;
 
     if lookup_table_info.key != &derived_table_key {
         msg!(
@@ -131,11 +97,10 @@ fn process_create_lookup_table(
         return Err(ProgramError::InvalidArgument);
     }
 
-    // This check _is required_ after
-    // "FKAcEvNgSY79RpqsPNUV5gDyumopH4cEHqUxyfm8b8Ap" is activated on
+    // [Core BPF]: This check _is required_ since
+    // "FKAcEvNgSY79RpqsPNUV5gDyumopH4cEHqUxyfm8b8Ap" was activated on
     // mainnet-beta.
-    // See https://github.com/solana-labs/solana/blob/e4064023bf7936ced97b0d4de22137742324983d/programs/address-lookup-table/src/processor.rs#L129-L135
-    #[cfg(not(feature = "relax-authority-checks-disabled"))]
+    // See https://github.com/solana-labs/solana/blob/e4064023bf7936ced97b0d4de22137742324983d/programs/address-lookup-table/src/processor.rs#L129-L135.
     if check_id(lookup_table_info.owner) {
         msg!("I am not a builtin");
         set_return_data(b"I am not a builtin");
@@ -159,25 +124,17 @@ fn process_create_lookup_table(
     invoke_signed(
         &system_instruction::allocate(lookup_table_info.key, lookup_table_data_len as u64),
         &[lookup_table_info.clone()],
-        &[&[
-            authority_info.key.as_ref(),
-            &derivation_slot.to_le_bytes(),
-            &[bump_seed], // We _could_ eliminate this from the instruction
-        ]],
+        &[derived_table_seeds],
     )?;
 
     invoke_signed(
         &system_instruction::assign(lookup_table_info.key, program_id),
         &[lookup_table_info.clone()],
-        &[&[
-            authority_info.key.as_ref(),
-            &derivation_slot.to_le_bytes(),
-            &[bump_seed], // We _could_ eliminate this from the instruction
-        ]],
+        &[derived_table_seeds],
     )?;
 
     ProgramState::serialize_new_lookup_table(
-        *lookup_table_info.try_borrow_mut_data()?,
+        &mut lookup_table_info.try_borrow_mut_data()?[..],
         authority_info.key,
     )?;
 
@@ -191,6 +148,7 @@ fn process_freeze_lookup_table(program_id: &Pubkey, accounts: &[AccountInfo]) ->
     let authority_info = next_account_info(accounts_iter)?;
 
     if lookup_table_info.owner != program_id {
+        msg!("Lookup table owner should be the Address Lookup Table program");
         return Err(ProgramError::InvalidAccountOwner);
     }
 
@@ -205,12 +163,13 @@ fn process_freeze_lookup_table(program_id: &Pubkey, accounts: &[AccountInfo]) ->
 
         if lookup_table.meta.authority.is_none() {
             msg!("Lookup table is already frozen");
-            // TODO: Should be `ProgramError::Immutable`
+            // [Core BPF]: TODO: Should be `ProgramError::Immutable`
             // See https://github.com/solana-labs/solana/pull/35113
             return Err(ProgramError::Custom(0));
         }
         if lookup_table.meta.authority != Some(*authority_info.key) {
-            // TODO: Should be `ProgramError::IncorrectAuthority`
+            msg!("Incorrect lookup table authority");
+            // [Core BPF]: TODO: Should be `ProgramError::IncorrectAuthority`
             // See https://github.com/solana-labs/solana/pull/35113
             return Err(ProgramError::Custom(0));
         }
@@ -228,7 +187,7 @@ fn process_freeze_lookup_table(program_id: &Pubkey, accounts: &[AccountInfo]) ->
 
     lookup_table_meta.authority = None;
     AddressLookupTable::overwrite_meta_data(
-        *lookup_table_info.try_borrow_mut_data()?,
+        &mut lookup_table_info.try_borrow_mut_data()?[..],
         lookup_table_meta,
     )?;
 
@@ -246,6 +205,7 @@ fn process_extend_lookup_table(
     let authority_info = next_account_info(accounts_iter)?;
 
     if lookup_table_info.owner != program_id {
+        msg!("Lookup table owner should be the Address Lookup Table program");
         return Err(ProgramError::InvalidAccountOwner);
     }
 
@@ -254,18 +214,19 @@ fn process_extend_lookup_table(
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let (lookup_table_meta, old_table_data_len, new_table_data_len) = {
+    let (lookup_table_meta, new_addresses_start_index, new_table_data_len) = {
         let lookup_table_data = lookup_table_info.try_borrow_data()?;
         let mut lookup_table = AddressLookupTable::deserialize(&lookup_table_data)?;
 
         if lookup_table.meta.authority.is_none() {
             msg!("Lookup table is frozen");
-            // TODO: Should be `ProgramError::Immutable`
+            // [Core BPF]: TODO: Should be `ProgramError::Immutable`
             // See https://github.com/solana-labs/solana/pull/35113
             return Err(ProgramError::Custom(0));
         }
         if lookup_table.meta.authority != Some(*authority_info.key) {
-            // TODO: Should be `ProgramError::IncorrectAuthority`
+            msg!("Incorrect lookup table authority");
+            // [Core BPF]: TODO: Should be `ProgramError::IncorrectAuthority`
             // See https://github.com/solana-labs/solana/pull/35113
             return Err(ProgramError::Custom(0));
         }
@@ -283,8 +244,10 @@ fn process_extend_lookup_table(
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        let old_table_addresses_len = lookup_table.addresses.len();
-        let new_table_addresses_len = old_table_addresses_len.saturating_add(new_addresses.len());
+        let new_table_addresses_len = lookup_table
+            .addresses
+            .len()
+            .saturating_add(new_addresses.len());
 
         if new_table_addresses_len > LOOKUP_TABLE_MAX_ADDRESSES {
             msg!(
@@ -295,29 +258,31 @@ fn process_extend_lookup_table(
             return Err(ProgramError::InvalidInstructionData);
         }
 
+        let old_table_addresses_len = u8::try_from(lookup_table.addresses.len()).map_err(|_| {
+            // This is impossible as long as the length of new_addresses
+            // is non-zero and LOOKUP_TABLE_MAX_ADDRESSES == u8::MAX + 1.
+            ProgramError::InvalidAccountData
+        })?;
+
         let clock = <Clock as Sysvar>::get()?;
         if clock.slot != lookup_table.meta.last_extended_slot {
             lookup_table.meta.last_extended_slot = clock.slot;
-            lookup_table.meta.last_extended_slot_start_index =
-                u8::try_from(old_table_addresses_len).map_err(|_| {
-                    // This is impossible as long as the length of new_addresses
-                    // is non-zero and LOOKUP_TABLE_MAX_ADDRESSES == u8::MAX + 1.
-                    ProgramError::InvalidAccountData
-                })?;
+            lookup_table.meta.last_extended_slot_start_index = old_table_addresses_len;
         }
 
-        let old_table_data_len = LOOKUP_TABLE_META_SIZE
-            .checked_add(old_table_addresses_len.saturating_mul(PUBKEY_BYTES))
-            .ok_or(ProgramError::ArithmeticOverflow)?;
         let new_table_data_len = LOOKUP_TABLE_META_SIZE
             .checked_add(new_table_addresses_len.saturating_mul(PUBKEY_BYTES))
             .ok_or(ProgramError::ArithmeticOverflow)?;
 
-        (lookup_table.meta, old_table_data_len, new_table_data_len)
+        (
+            lookup_table.meta,
+            old_table_addresses_len,
+            new_table_data_len,
+        )
     };
 
     AddressLookupTable::overwrite_meta_data(
-        *lookup_table_info.try_borrow_mut_data()?,
+        &mut lookup_table_info.try_borrow_mut_data()?[..],
         lookup_table_meta,
     )?;
 
@@ -327,7 +292,7 @@ fn process_extend_lookup_table(
         let mut lookup_table_data = lookup_table_info.try_borrow_mut_data()?;
         let uninitialized_addresses = AddressLookupTable::deserialize_addresses_from_index_mut(
             &mut lookup_table_data,
-            old_table_data_len,
+            new_addresses_start_index,
         )?;
         uninitialized_addresses.copy_from_slice(&new_addresses);
     }
@@ -353,9 +318,6 @@ fn process_extend_lookup_table(
         )?;
     }
 
-    msg!("I am not a builtin");
-    set_return_data(b"I am not a builtin");
-
     Ok(())
 }
 
@@ -366,6 +328,7 @@ fn process_deactivate_lookup_table(program_id: &Pubkey, accounts: &[AccountInfo]
     let authority_info = next_account_info(accounts_iter)?;
 
     if lookup_table_info.owner != program_id {
+        msg!("Lookup table owner should be the Address Lookup Table program");
         return Err(ProgramError::InvalidAccountOwner);
     }
 
@@ -380,12 +343,13 @@ fn process_deactivate_lookup_table(program_id: &Pubkey, accounts: &[AccountInfo]
 
         if lookup_table.meta.authority.is_none() {
             msg!("Lookup table is frozen");
-            // TODO: Should be `ProgramError::Immutable`
+            // [Core BPF]: TODO: Should be `ProgramError::Immutable`
             // See https://github.com/solana-labs/solana/pull/35113
             return Err(ProgramError::Custom(0));
         }
         if lookup_table.meta.authority != Some(*authority_info.key) {
-            // TODO: Should be `ProgramError::IncorrectAuthority`
+            msg!("Incorrect lookup table authority");
+            // [Core BPF]: TODO: Should be `ProgramError::IncorrectAuthority`
             // See https://github.com/solana-labs/solana/pull/35113
             return Err(ProgramError::Custom(0));
         }
@@ -401,7 +365,7 @@ fn process_deactivate_lookup_table(program_id: &Pubkey, accounts: &[AccountInfo]
     lookup_table_meta.deactivation_slot = clock.slot;
 
     AddressLookupTable::overwrite_meta_data(
-        *lookup_table_info.try_borrow_mut_data()?,
+        &mut lookup_table_info.try_borrow_mut_data()?[..],
         lookup_table_meta,
     )?;
 
@@ -416,6 +380,7 @@ fn process_close_lookup_table(program_id: &Pubkey, accounts: &[AccountInfo]) -> 
     let recipient_info = next_account_info(accounts_iter)?;
 
     if lookup_table_info.owner != program_id {
+        msg!("Lookup table owner should be the Address Lookup Table program");
         return Err(ProgramError::InvalidAccountOwner);
     }
 
@@ -424,8 +389,8 @@ fn process_close_lookup_table(program_id: &Pubkey, accounts: &[AccountInfo]) -> 
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // Here the legacy built-in version of ALT fallibly checks to ensure the
-    // number of instruction accounts is 3.
+    // [Core BPF]: Here the legacy built-in version of ALT fallibly checks to
+    // ensure the number of instruction accounts is 3.
     // It also checks that the recipient account is not the same as the lookup
     // table account.
     // The built-in does this by specifically checking the account keys at
@@ -442,21 +407,22 @@ fn process_close_lookup_table(program_id: &Pubkey, accounts: &[AccountInfo]) -> 
 
         if lookup_table.meta.authority.is_none() {
             msg!("Lookup table is frozen");
-            // TODO: Should be `ProgramError::Immutable`
+            // [Core BPF]: TODO: Should be `ProgramError::Immutable`
             // See https://github.com/solana-labs/solana/pull/35113
             return Err(ProgramError::Custom(0));
         }
         if lookup_table.meta.authority != Some(*authority_info.key) {
-            // TODO: Should be `ProgramError::IncorrectAuthority`
+            msg!("Incorrect lookup table authority");
+            // [Core BPF]: TODO: Should be `ProgramError::IncorrectAuthority`
             // See https://github.com/solana-labs/solana/pull/35113
             return Err(ProgramError::Custom(0));
         }
 
         let clock = <Clock as Sysvar>::get()?;
 
-        // Again, since the `SlotHashes` sysvar is not available to BPF programs,
-        // we can't use the `SlotHashes` sysvar to check the status of a lookup
-        // table.
+        // [Core BPF]: Again, since the `SlotHashes` sysvar is not available to
+        // BPF programs, we can't use the `SlotHashes` sysvar to check the
+        // status of a lookup table.
         // Again we instead use the `Clock` sysvar here.
         // This will no longer consider skipped slots wherein a block was not
         // produced.
@@ -492,30 +458,30 @@ fn process_close_lookup_table(program_id: &Pubkey, accounts: &[AccountInfo]) -> 
 }
 
 /// Processes a
-/// `solana_programs_address_lookup_table::instruction::ProgramInstruction`
+/// `solana_programs_address_lookup_table::instruction::AddressLookupTableInstruction`
 pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
     let instruction = limited_deserialize(input)?;
     match instruction {
-        ProgramInstruction::CreateLookupTable {
+        AddressLookupTableInstruction::CreateLookupTable {
             recent_slot,
             bump_seed,
         } => {
             msg!("Instruction: CreateLookupTable");
             process_create_lookup_table(program_id, accounts, recent_slot, bump_seed)
         }
-        ProgramInstruction::FreezeLookupTable => {
+        AddressLookupTableInstruction::FreezeLookupTable => {
             msg!("Instruction: FreezeLookupTable");
             process_freeze_lookup_table(program_id, accounts)
         }
-        ProgramInstruction::ExtendLookupTable { new_addresses } => {
+        AddressLookupTableInstruction::ExtendLookupTable { new_addresses } => {
             msg!("Instruction: ExtendLookupTable");
             process_extend_lookup_table(program_id, accounts, new_addresses)
         }
-        ProgramInstruction::DeactivateLookupTable => {
+        AddressLookupTableInstruction::DeactivateLookupTable => {
             msg!("Instruction: DeactivateLookupTable");
             process_deactivate_lookup_table(program_id, accounts)
         }
-        ProgramInstruction::CloseLookupTable => {
+        AddressLookupTableInstruction::CloseLookupTable => {
             msg!("Instruction: CloseLookupTable");
             process_close_lookup_table(program_id, accounts)
         }

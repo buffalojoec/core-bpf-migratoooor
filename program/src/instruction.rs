@@ -11,7 +11,7 @@ use {
 };
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
-pub enum ProgramInstruction {
+pub enum AddressLookupTableInstruction {
     /// Create an address lookup table
     ///
     /// # Account references
@@ -83,35 +83,10 @@ pub fn derive_lookup_table_address(
     )
 }
 
-// Instruction not required after
-// "FKAcEvNgSY79RpqsPNUV5gDyumopH4cEHqUxyfm8b8Ap" is activated on mainnet-beta.
-#[cfg(feature = "relax-authority-checks-disabled")]
-/// Constructs an instruction to create a table account and returns
-/// the instruction and the table account's derived address.
-pub fn create_lookup_table_signed(
-    authority_address: Pubkey,
-    payer_address: Pubkey,
-    recent_slot: Slot,
-) -> (Instruction, Pubkey) {
-    let (lookup_table_address, bump_seed) =
-        derive_lookup_table_address(&authority_address, recent_slot);
-
-    let instruction = Instruction::new_with_bincode(
-        crate::id(),
-        &ProgramInstruction::CreateLookupTable {
-            recent_slot,
-            bump_seed,
-        },
-        vec![
-            AccountMeta::new(lookup_table_address, false),
-            AccountMeta::new_readonly(authority_address, true), // Signer
-            AccountMeta::new(payer_address, true),
-            AccountMeta::new_readonly(system_program::id(), false),
-        ],
-    );
-
-    (instruction, lookup_table_address)
-}
+// [Core BPF]: `create_lookup_table_signed` has been removed, since feature
+// "FKAcEvNgSY79RpqsPNUV5gDyumopH4cEHqUxyfm8b8Ap"
+// (relax_authority_signer_check_for_lookup_table_creation) has been activated
+// on all clusters.
 
 /// Constructs an instruction to create a table account and returns
 /// the instruction and the table account's derived address.
@@ -125,7 +100,7 @@ pub fn create_lookup_table(
 
     let instruction = Instruction::new_with_bincode(
         crate::id(),
-        &ProgramInstruction::CreateLookupTable {
+        &AddressLookupTableInstruction::CreateLookupTable {
             recent_slot,
             bump_seed,
         },
@@ -146,7 +121,7 @@ pub fn create_lookup_table(
 pub fn freeze_lookup_table(lookup_table_address: Pubkey, authority_address: Pubkey) -> Instruction {
     Instruction::new_with_bincode(
         crate::id(),
-        &ProgramInstruction::FreezeLookupTable,
+        &AddressLookupTableInstruction::FreezeLookupTable,
         vec![
             AccountMeta::new(lookup_table_address, false),
             AccountMeta::new_readonly(authority_address, true),
@@ -176,7 +151,7 @@ pub fn extend_lookup_table(
 
     Instruction::new_with_bincode(
         crate::id(),
-        &ProgramInstruction::ExtendLookupTable { new_addresses },
+        &AddressLookupTableInstruction::ExtendLookupTable { new_addresses },
         accounts,
     )
 }
@@ -190,7 +165,7 @@ pub fn deactivate_lookup_table(
 ) -> Instruction {
     Instruction::new_with_bincode(
         crate::id(),
-        &ProgramInstruction::DeactivateLookupTable,
+        &AddressLookupTableInstruction::DeactivateLookupTable,
         vec![
             AccountMeta::new(lookup_table_address, false),
             AccountMeta::new_readonly(authority_address, true),
@@ -208,7 +183,7 @@ pub fn close_lookup_table(
 ) -> Instruction {
     Instruction::new_with_bincode(
         crate::id(),
-        &ProgramInstruction::CloseLookupTable,
+        &AddressLookupTableInstruction::CloseLookupTable,
         vec![
             AccountMeta::new(lookup_table_address, false),
             AccountMeta::new_readonly(authority_address, true),

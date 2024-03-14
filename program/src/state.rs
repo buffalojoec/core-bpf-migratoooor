@@ -1,7 +1,7 @@
 use {
-    crate::error::{AddressLookupError, MapToProgramIoError},
+    crate::error::AddressLookupError,
     serde::{Deserialize, Serialize},
-    // solana_frozen_abi_macro::{AbiEnumVisitor, AbiExample},
+    solana_frozen_abi_macro::{AbiEnumVisitor, AbiExample},
     solana_program::{
         clock::Slot, program_error::ProgramError, pubkey::Pubkey, slot_hashes::MAX_ENTRIES,
     },
@@ -14,6 +14,15 @@ pub const LOOKUP_TABLE_MAX_ADDRESSES: usize = 256;
 /// The serialized size of lookup table metadata
 pub const LOOKUP_TABLE_META_SIZE: usize = 56;
 
+// [Core BPF]: Newly-implemented logic for calculating slot position relative
+// to the current slot on the `Clock`.
+// In the original implementation, `slot_hashes.position()` can return
+// `Some(position)` where `position` is in the range `0..511`.
+// Position `0` means `MAX_ENTRIES - 0 = 512` blocks remaining.
+// Position `511` means `MAX_ENTRIES - 511 = 1` block remaining.
+// To account for that range, considering the current slot would not be present
+// in the `SlotHashes` sysvar, we need to first subtract `1` from the current
+// slot, and then subtract the target slot from the result.
 fn calculate_slot_position(target_slot: &Slot, current_slot: &Slot) -> Option<usize> {
     let position = current_slot.saturating_sub(*target_slot);
 
@@ -31,19 +40,10 @@ pub enum LookupTableStatus {
     Deactivated,
 }
 
-// TODO: `Abi` & `AbiExample` can only be added once `LookupTableMeta` is out of
-// `solana_program`. See https://github.com/solana-labs/solana/pull/35275.
 /// Address lookup table metadata
-#[derive(
-    Debug,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    Clone,
-    /* AbiExample, */
-)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, AbiExample)]
 pub struct LookupTableMeta {
+    // [Core BPF]: TODO: `Clock` instead of `SlotHashes`.
     /// Lookup tables cannot be closed until the deactivation slot is
     /// no longer "recent" (not accessible in the `SlotHashes` sysvar).
     pub deactivation_slot: Slot,
@@ -91,10 +91,10 @@ impl LookupTableMeta {
         }
     }
 
-    // This function has been modified from its legacy built-in counterpart
-    // to no longer use the `SlotHashes` sysvar, since it is not available
-    // for BPF programs. Instead, it uses the `current_slot` parameter to
-    // calculate the table's status.
+    // [Core BPF]: This function has been modified from its legacy built-in
+    // counterpart to no longer use the `SlotHashes` sysvar, since it is not
+    // available for BPF programs. Instead, it uses the `current_slot`
+    // parameter to calculate the table's status.
     // This will no longer consider the case where a slot has been skipped
     // and no block was produced.
     // If it's imperative to ensure we are only considering slots where blocks
@@ -106,11 +106,12 @@ impl LookupTableMeta {
             LookupTableStatus::Activated
         } else if self.deactivation_slot == current_slot {
             LookupTableStatus::Deactivating {
-                remaining_blocks: MAX_ENTRIES.saturating_add(1),
+                remaining_blocks: MAX_ENTRIES,
             }
         } else if let Some(slot_position) =
             calculate_slot_position(&self.deactivation_slot, &current_slot)
         {
+            // [Core BPF]: TODO: `Clock` instead of `SlotHashes`.
             // Deactivation requires a cool-down period to give in-flight transactions
             // enough time to land and to remove indeterminism caused by transactions
             // loading addresses in the same slot when a table is closed. The
@@ -129,19 +130,8 @@ impl LookupTableMeta {
     }
 }
 
-// TODO: `Abi` & `AbiExample` can only be added once `ProgramState` is out of
-// `solana_program`. See https://github.com/solana-labs/solana/pull/35275.
 /// Program account states
-#[derive(
-    Debug,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    Clone,
-    /* AbiExample,
-     * AbiEnumVisitor, */
-)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, AbiExample, AbiEnumVisitor)]
 #[allow(clippy::large_enum_variant)]
 pub enum ProgramState {
     /// Account is not initialized.
@@ -151,25 +141,35 @@ pub enum ProgramState {
 }
 
 impl ProgramState {
+    // [Core BPF]: This is a new function that was not present in the legacy
+    // built-in implementation.
     /// Serialize a new lookup table into uninitialized account data.
     pub fn serialize_new_lookup_table(
         data: &mut [u8],
         authority_key: &Pubkey,
     ) -> Result<(), ProgramError> {
         let lookup_table = ProgramState::LookupTable(LookupTableMeta::new(*authority_key));
-        bincode::serialize_into(data, &lookup_table).map_to_program_io_error()
+        // [Core BPF]: The original builtin implementation mapped `bincode`
+        // serialization errors to `InstructionError::GenericError`, but this
+        // error is deprecated. The error code for failed serialization has
+        // changed.
+        let serialized_size = bincode::serialized_size(&lookup_table)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+        // [Core BPF]: Although this check may seem unnecessary, since
+        // `bincode::serialize_into` will throw
+        // `ProgramError::InvalidAccountData` if the data is not large enough,
+        // `AccountDataTooSmall` is the error thrown by the original built-in
+        // through `BorrowedAccount::set_state`, which employs this check.
+        // Note the original implementation did not check for data that was
+        // too large, nor did it check to make sure the data was all `0`.
+        if serialized_size > data.len() as u64 {
+            return Err(ProgramError::AccountDataTooSmall);
+        }
+        bincode::serialize_into(data, &lookup_table).map_err(|_| ProgramError::InvalidAccountData)
     }
 }
 
-// TODO: `Abi` & `AbiExample` can only be added once `AddressLookupTable` is out
-// of `solana_program`. See https://github.com/solana-labs/solana/pull/35275.
-#[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    /* AbiExample, */
-)]
+#[derive(Debug, PartialEq, Eq, Clone, AbiExample)]
 pub struct AddressLookupTable<'a> {
     pub meta: LookupTableMeta,
     pub addresses: Cow<'a, [Pubkey]>,
@@ -187,8 +187,11 @@ impl<'a> AddressLookupTable<'a> {
             .ok_or(ProgramError::InvalidAccountData)?;
         meta_data.fill(0);
         bincode::serialize_into(meta_data, &ProgramState::LookupTable(lookup_table_meta))
-            .map_to_program_io_error()?;
-        Ok(())
+            // [Core BPF]: The original builtin implementation mapped `bincode`
+            // serialization errors to `InstructionError::GenericError`, but this
+            // error is deprecated. The error code for failed serialization has
+            // changed.
+            .map_err(|_| ProgramError::InvalidAccountData)
     }
 
     /// Get the length of addresses that are active for lookups
@@ -242,15 +245,21 @@ impl<'a> AddressLookupTable<'a> {
         Ok(data)
     }
 
-    /// Mutably deserialize addresses from a lookup table's data.
+    // [Core BPF]: This is a new function that was not present in the legacy
+    // built-in implementation.
+    /// Mutably deserialize addresses from a lookup table's data. This function
+    /// accepts an index in the list of addresses to start deserializing from.
     pub fn deserialize_addresses_from_index_mut(
         data: &mut [u8],
-        start_index: usize,
+        index: u8,
     ) -> Result<&mut [Pubkey], ProgramError> {
-        if start_index < LOOKUP_TABLE_META_SIZE || start_index >= data.len() {
+        let offset = LOOKUP_TABLE_META_SIZE
+            .checked_add((index as usize).saturating_mul(std::mem::size_of::<Pubkey>()))
+            .ok_or(ProgramError::ArithmeticOverflow)?;
+        if offset >= data.len() {
             return Err(ProgramError::InvalidArgument);
         }
-        bytemuck::try_cast_slice_mut(&mut data[start_index..]).map_err(|_| {
+        bytemuck::try_cast_slice_mut(&mut data[offset..]).map_err(|_| {
             // Should be impossible because raw address data
             // should be aligned and sized in multiples of 32 bytes
             ProgramError::InvalidAccountData
@@ -288,10 +297,7 @@ impl<'a> AddressLookupTable<'a> {
 
 #[cfg(test)]
 mod tests {
-    use {
-        super::*,
-        solana_sdk::{hash::Hash, slot_hashes::SlotHashes},
-    };
+    use {super::*, test_case::test_case};
 
     impl AddressLookupTable<'_> {
         fn new_for_tests(meta: LookupTableMeta, num_addresses: usize) -> Self {
@@ -326,74 +332,96 @@ mod tests {
         assert_eq!(meta_size as usize, 24);
     }
 
-    #[test]
-    fn test_lookup_table_meta_status() {
-        let mut slot_hashes = SlotHashes::default();
-        for slot in 1..=MAX_ENTRIES as Slot {
-            slot_hashes.add(slot, Hash::new_unique());
-        }
-
-        let most_recent_slot = slot_hashes.first().unwrap().0;
-        let least_recent_slot = slot_hashes.last().unwrap().0;
-        assert!(least_recent_slot < most_recent_slot);
-
-        // 10 was chosen because the current slot isn't necessarily the next
-        // slot after the most recent block
-        let current_slot = most_recent_slot + 10;
-
-        let active_table = LookupTableMeta {
-            deactivation_slot: Slot::MAX,
+    // [Core BPF]: This test has been rewritten to test the new
+    // `calculate_slot_position` status functionality based on `Clock` rather
+    // than `SlotHashes`.
+    // Written intentionally verbose.
+    // rustfmt-ignore
+    #[test_case(
+        Slot::MAX,
+        0,
+        LookupTableStatus::Activated;
+        "activated"
+    )]
+    #[test_case(
+        Slot::MAX,
+        511,
+        LookupTableStatus::Activated;
+        "activated_current_slot_doesnt_matter"
+    )]
+    // Here we hit branch `self.deactivation_slot == current_slot`.
+    #[test_case(
+        0,
+        0,
+        LookupTableStatus::Deactivating { remaining_blocks: MAX_ENTRIES }; // 512
+        "d0::deactivated_in_current_slot"
+    )]
+    // Here `calculate_slot_position` returns `Some(0)`.
+    #[test_case(
+        0,
+        0 + 1,
+        LookupTableStatus::Deactivating { remaining_blocks: MAX_ENTRIES - 1 }; // 511
+        "d0::deactivated_one_slot_ago"
+    )]
+    // Here `calculate_slot_position` returns `None`.
+    #[test_case(
+        0,
+        0 + MAX_ENTRIES as u64,
+        LookupTableStatus::Deactivated;
+        "d0::cooldown_expired"
+    )]
+    // Here we hit branch `self.deactivation_slot == current_slot`.
+    #[test_case(
+        1,
+        1,
+        LookupTableStatus::Deactivating { remaining_blocks: MAX_ENTRIES }; // 512
+        "d1::deactivated_in_current_slot"
+    )]
+    // Here `calculate_slot_position` returns `Some(0)`.
+    #[test_case(
+        1,
+        1 + 1,
+        LookupTableStatus::Deactivating { remaining_blocks: MAX_ENTRIES - 1 }; // 511
+        "d1::deactivated_one_slot_ago"
+    )]
+    // Here `calculate_slot_position` returns `None`.
+    #[test_case(
+        1,
+        1 + MAX_ENTRIES as u64,
+        LookupTableStatus::Deactivated;
+        "d1::cooldown_expired"
+    )]
+    // Here we hit branch `self.deactivation_slot == current_slot`.
+    #[test_case(
+        512,
+        512,
+        LookupTableStatus::Deactivating { remaining_blocks: MAX_ENTRIES }; // 512
+        "d512::deactivated_in_current_slot"
+    )]
+    // Here `calculate_slot_position` returns `Some(0)`.
+    #[test_case(
+        512,
+        512 + 1,
+        LookupTableStatus::Deactivating { remaining_blocks: MAX_ENTRIES - 1 }; // 511
+        "d512::deactivated_one_slot_ago"
+    )]
+    // Here `calculate_slot_position` returns `None`.
+    #[test_case(
+        512,
+        512 + MAX_ENTRIES as u64,
+        LookupTableStatus::Deactivated;
+        "d512::cooldown_expired"
+    )]
+    fn test_lookup_table_meta_status(
+        deactivation_slot: Slot,
+        current_slot: Slot,
+        expected_status: LookupTableStatus,
+    ) {
+        let meta = LookupTableMeta {
+            deactivation_slot,
             ..LookupTableMeta::default()
         };
-
-        let just_started_deactivating_table = LookupTableMeta {
-            deactivation_slot: current_slot,
-            ..LookupTableMeta::default()
-        };
-
-        let _recently_started_deactivating_table = LookupTableMeta {
-            deactivation_slot: most_recent_slot,
-            ..LookupTableMeta::default()
-        };
-
-        let _almost_deactivated_table = LookupTableMeta {
-            deactivation_slot: least_recent_slot,
-            ..LookupTableMeta::default()
-        };
-
-        let deactivated_table = LookupTableMeta {
-            deactivation_slot: least_recent_slot - 1,
-            ..LookupTableMeta::default()
-        };
-
-        assert_eq!(
-            active_table.status(current_slot),
-            LookupTableStatus::Activated
-        );
-        assert_eq!(
-            just_started_deactivating_table.status(current_slot),
-            LookupTableStatus::Deactivating {
-                remaining_blocks: MAX_ENTRIES.saturating_add(1),
-            }
-        );
-        // TODO: These tests relies on specifically slot hashes being divergent
-        // from the current slot.
-        // assert_eq!(
-        //     recently_started_deactivating_table.status(current_slot),
-        //     LookupTableStatus::Deactivating {
-        //         remaining_blocks: MAX_ENTRIES,
-        //     }
-        // );
-        // assert_eq!(
-        //     almost_deactivated_table.status(current_slot),
-        //     LookupTableStatus::Deactivating {
-        //         remaining_blocks: 1,
-        //     }
-        // );
-        assert_eq!(
-            deactivated_table.status(current_slot),
-            LookupTableStatus::Deactivated
-        );
+        assert_eq!(meta.status(current_slot), expected_status,);
     }
 
     #[test]
@@ -454,6 +482,77 @@ mod tests {
     }
 
     #[test]
+    fn test_serialize_new_lookup_table() {
+        let authority_key = Pubkey::new_unique();
+        let check_meta = LookupTableMeta::new(authority_key);
+
+        // Success proper data size.
+        let mut data = vec![0; LOOKUP_TABLE_META_SIZE];
+        assert_eq!(
+            ProgramState::serialize_new_lookup_table(&mut data, &authority_key),
+            Ok(())
+        );
+        let deserialized = AddressLookupTable::deserialize(&data).unwrap();
+        assert_eq!(deserialized.meta, check_meta);
+        assert!(deserialized.addresses.is_empty());
+
+        // Will overwrite existing data
+        let mut data = vec![7; LOOKUP_TABLE_META_SIZE];
+        assert_eq!(
+            ProgramState::serialize_new_lookup_table(&mut data, &authority_key),
+            Ok(())
+        );
+        let deserialized = AddressLookupTable::deserialize(&data).unwrap();
+        assert_eq!(deserialized.meta, check_meta);
+        assert!(deserialized.addresses.is_empty());
+
+        // Fail data too small.
+        let mut data = vec![0; 5];
+        assert_eq!(
+            ProgramState::serialize_new_lookup_table(&mut data, &authority_key),
+            Err(ProgramError::AccountDataTooSmall)
+        );
+    }
+
+    #[test]
+    fn test_deserialize_addresses_from_index_mut() {
+        let authority_key = Pubkey::new_unique();
+
+        // Alloc space for no addresses.
+        let mut data = vec![0; LOOKUP_TABLE_META_SIZE];
+        ProgramState::serialize_new_lookup_table(&mut data, &authority_key).unwrap();
+
+        // Cannot deserialize from the addresses offset if there are no
+        // addresses.
+        // Note the program will realloc first, before attempting this.
+        assert_eq!(
+            AddressLookupTable::deserialize_addresses_from_index_mut(&mut data, 0),
+            Err(ProgramError::InvalidArgument)
+        );
+
+        // Alloc space for two addresses.
+        let mut data = vec![0; LOOKUP_TABLE_META_SIZE + 64];
+        ProgramState::serialize_new_lookup_table(&mut data, &authority_key).unwrap();
+
+        // Try to deserialize from an index out of range.
+        assert_eq!(
+            AddressLookupTable::deserialize_addresses_from_index_mut(&mut data, 2),
+            Err(ProgramError::InvalidArgument)
+        );
+
+        // Deserialize from the first index.
+        let addresses =
+            AddressLookupTable::deserialize_addresses_from_index_mut(&mut data, 0).unwrap();
+
+        // Add two new unique addresses.
+        let pubkey1 = Pubkey::new_unique();
+        let pubkey2 = Pubkey::new_unique();
+        addresses[0] = pubkey1;
+        addresses[1] = pubkey2;
+        assert_eq!(&addresses, &[pubkey1, pubkey2]);
+    }
+
+    #[test]
     fn test_lookup_from_deactivating_table() {
         let current_slot = 1;
         let addresses = vec![Pubkey::new_unique()];
@@ -469,7 +568,7 @@ mod tests {
         assert_eq!(
             lookup_table.meta.status(current_slot),
             LookupTableStatus::Deactivating {
-                remaining_blocks: MAX_ENTRIES + 1
+                remaining_blocks: MAX_ENTRIES
             }
         );
 
