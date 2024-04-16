@@ -2,10 +2,12 @@
 
 mod harness;
 mod program;
+mod validator;
 
 use {
     clap::{Parser, Subcommand},
     program::Program,
+    solana_sdk::signer::Signer,
 };
 
 #[derive(Subcommand)]
@@ -31,6 +33,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Program: {}", program.id());
             let harness = program.harness();
             harness.test();
+            let (test_validator, payer) = validator::start().await;
+            {
+                let local_validator = std::sync::Arc::new(test_validator);
+                let local_payer = std::sync::Arc::new(payer);
+                let local_rpc_client = local_validator.get_async_rpc_client();
+                let bal = &local_rpc_client
+                    .get_balance(&local_payer.pubkey())
+                    .await
+                    .unwrap();
+                println!("Payer: {}, Balance: {}", local_payer.pubkey(), bal);
+            }
         }
     }
     Ok(())

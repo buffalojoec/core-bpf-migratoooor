@@ -1,4 +1,1 @@
-/**/target/
-.env
-.solana
-test-ledger
+target
