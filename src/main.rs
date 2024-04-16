@@ -1,27 +1,12 @@
 //! CLI to test Core BPF program migrations.
 
-use {
-    clap::{Parser, Subcommand, ValueEnum},
-    solana_sdk::pubkey::Pubkey,
-};
+mod harness;
+mod program;
 
-#[derive(Clone, Debug, ValueEnum)]
-enum Program {
-    AddressLookupTable,
-    Config,
-    FeatureGate,
-    Stake,
-}
-impl Program {
-    pub fn id(&self) -> Pubkey {
-        match self {
-            Program::AddressLookupTable => solana_sdk::address_lookup_table::program::id(),
-            Program::Config => solana_sdk::config::program::id(),
-            Program::FeatureGate => solana_sdk::feature::id(),
-            Program::Stake => solana_sdk::stake::program::id(),
-        }
-    }
-}
+use {
+    clap::{Parser, Subcommand},
+    program::Program,
+};
 
 #[derive(Subcommand)]
 enum SubCommand {
@@ -44,6 +29,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         SubCommand::Test { program } => {
             println!("Testing migration of builtin programs to Core BPF");
             println!("Program: {}", program.id());
+            let harness = program.harness();
+            harness.test();
         }
     }
     Ok(())
