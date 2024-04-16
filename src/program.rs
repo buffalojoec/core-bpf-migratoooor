@@ -1,7 +1,7 @@
 use {
     crate::harness::{
         AddressLookupTableProgramTestHarness, ConfigProgramTestHarness, FeatureGateProgramHarness,
-        Harness, StakeProgramTestHarness,
+        Harness,
     },
     clap::ValueEnum,
     solana_sdk::pubkey::Pubkey,
@@ -12,7 +12,6 @@ pub enum Program {
     AddressLookupTable,
     Config,
     FeatureGate,
-    Stake,
 }
 impl Program {
     pub fn id(&self) -> Pubkey {
@@ -20,7 +19,6 @@ impl Program {
             Program::AddressLookupTable => solana_sdk::address_lookup_table::program::id(),
             Program::Config => solana_sdk::config::program::id(),
             Program::FeatureGate => solana_sdk::feature::id(),
-            Program::Stake => solana_sdk::stake::program::id(),
         }
     }
 
@@ -29,7 +27,6 @@ impl Program {
             Program::AddressLookupTable => Box::new(AddressLookupTableProgramTestHarness),
             Program::Config => Box::new(ConfigProgramTestHarness),
             Program::FeatureGate => Box::new(FeatureGateProgramHarness),
-            Program::Stake => Box::new(StakeProgramTestHarness),
         }
     }
 }

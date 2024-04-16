@@ -22,10 +22,3 @@ impl Harness for FeatureGateProgramHarness {
         println!("Testing FeatureGateProgram");
     }
 }
-
-pub struct StakeProgramTestHarness;
-impl Harness for StakeProgramTestHarness {
-    fn test(&self) {
-        println!("Testing StakeProgram");
-    }
-}

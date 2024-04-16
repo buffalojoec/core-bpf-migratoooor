@@ -5,11 +5,16 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.5.4", features = ["derive"] }
-solana-client = "1.18.11"
-solana-logger = "1.18.11"
-solana-sdk = "1.18.11"
-solana-test-validator = "1.18.11"
+solana-logger = { git = "https://github.com/buffalojoec/solana", branch = "core-bpf-test-validator" }
+solana-runtime = { git = "https://github.com/buffalojoec/solana", branch = "core-bpf-test-validator", features = ["dev-context-only-utils"] }
+solana-test-validator = { git = "https://github.com/buffalojoec/solana", branch = "core-bpf-test-validator", features = ["dev-context-only-utils"] }
+solana-sdk = { git = "https://github.com/buffalojoec/solana", branch = "core-bpf-test-validator" }
 tokio = { version = "1.37.0", features = ["full"] }
+
+[patch.crates-io]
+solana-program = { git = "https://github.com/buffalojoec/solana", branch = "core-bpf-test-validator" }
+solana-sdk = { git = "https://github.com/buffalojoec/solana", branch = "core-bpf-test-validator" }
+solana-zk-token-sdk = { git = "https://github.com/buffalojoec/solana", branch = "core-bpf-test-validator" }
 
 [[bin]]
 name = "cbm"
