@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 test_validator,
             } = &validator;
             let rpc_client = test_validator.get_async_rpc_client();
-            let test_context = TestContext::new(&rpc_client, payer);
+            let test_context = TestContext::new(&rpc_client, payer).await;
 
             output("Running tests on the builtin...");
             program.test(&test_context).await;
@@ -65,6 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .ok()
                 .map(|a| a.owner == bpf_loader_upgradeable::id())
                 .unwrap_or(false));
+            validator.wait_for_next_slot().await;
             output("Migration successful.");
 
             output("Running tests on the BPF version...");

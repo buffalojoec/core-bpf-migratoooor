@@ -24,6 +24,17 @@ impl ValidatorContext {
         self.test_validator.get_async_rpc_client()
     }
 
+    pub async fn wait_for_next_slot(&self) {
+        let rpc_client = self.rpc_client();
+        let start_slot = rpc_client.get_slot().await.unwrap();
+        let mut slot = start_slot;
+
+        while slot == start_slot {
+            slot = rpc_client.get_slot().await.unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(250));
+        }
+    }
+
     pub async fn wait_for_next_epoch(&self) {
         println!();
         let progress_bar = progress_bar();

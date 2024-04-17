@@ -1,5 +1,11 @@
 use {
-    crate::test_suite::TestContext, clap::ValueEnum, solana_sdk::pubkey::Pubkey, std::path::PathBuf,
+    crate::{
+        output::output,
+        test_suite::{self, TestContext},
+    },
+    clap::ValueEnum,
+    solana_sdk::pubkey::Pubkey,
+    std::path::PathBuf,
 };
 
 #[derive(Clone, Debug, ValueEnum)]
@@ -47,12 +53,12 @@ impl Program {
         }
     }
 
-    pub async fn test(&self, _context: &TestContext<'_>) {
-        let _program_id = self.id();
+    pub async fn test(&self, context: &TestContext<'_>) {
         match self {
             Program::AddressLookupTable => println!("Testing AddressLookupTableProgram"),
-            Program::Config => println!("Testing ConfigProgram"),
+            Program::Config => test_suite::config::test_suite(context).await,
             Program::FeatureGate => println!("Testing FeatureGateProgram"),
-        }
+        };
+        output("Tests passed!");
     }
 }

@@ -1152,9 +1152,13 @@ checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 name = "core-bpf-migratoooor"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
+ "bincode",
  "clap 4.5.4",
  "indicatif",
+ "serde",
  "solana-client",
+ "solana-config-program 0.1.0",
  "solana-logger",
  "solana-runtime",
  "solana-sdk",
@@ -4447,7 +4451,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "solana-config-program",
+ "solana-config-program 2.0.0",
  "solana-sdk",
  "spl-token",
  "spl-token-2022",
@@ -4721,6 +4725,16 @@ dependencies = [
 
 [[package]]
 name = "solana-config-program"
+version = "0.1.0"
+source = "git+https://github.com/solana-program/config?branch=core-bpf-test#94f92c5295728cbbbe7900857f6ca3a6ae7b008b"
+dependencies = [
+ "bincode",
+ "serde",
+ "solana-program",
+]
+
+[[package]]
+name = "solana-config-program"
 version = "2.0.0"
 source = "git+https://github.com/buffalojoec/solana?branch=core-bpf-test-validator#3e37bde8d8b1f69e47fe89c1de67e0f345680915"
 dependencies = [
@@ -4838,7 +4852,7 @@ dependencies = [
  "solana-address-lookup-table-program",
  "solana-bpf-loader-program",
  "solana-compute-budget-program",
- "solana-config-program",
+ "solana-config-program 2.0.0",
  "solana-frozen-abi",
  "solana-frozen-abi-macro",
  "solana-loader-v4-program",
@@ -5556,7 +5570,7 @@ dependencies = [
  "solana-bpf-loader-program",
  "solana-bucket-map",
  "solana-compute-budget-program",
- "solana-config-program",
+ "solana-config-program 2.0.0",
  "solana-cost-model",
  "solana-frozen-abi",
  "solana-frozen-abi-macro",
@@ -5679,7 +5693,7 @@ dependencies = [
  "bincode",
  "log",
  "rustc_version",
- "solana-config-program",
+ "solana-config-program 2.0.0",
  "solana-program-runtime",
  "solana-sdk",
  "solana-vote-program",
