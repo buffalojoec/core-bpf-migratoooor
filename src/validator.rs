@@ -1,5 +1,8 @@
 use {
+    crate::output::progress_bar,
+    solana_client::nonblocking::rpc_client::RpcClient,
     solana_sdk::{
+        account::Account,
         bpf_loader_upgradeable,
         epoch_schedule::EpochSchedule,
         feature::{self, Feature},
@@ -10,32 +13,66 @@ use {
     std::path::PathBuf,
 };
 
-pub async fn start(
-    feature_id: Pubkey,
-    source_program: (Pubkey, PathBuf),
-) -> (TestValidator, Keypair) {
-    solana_logger::setup();
+const SLOTS_PER_EPOCH: u64 = 50;
 
-    let (source_program_id, source_program_path) = source_program;
+pub struct ValidatorContext {
+    pub test_validator: TestValidator,
+    pub payer: Keypair,
+}
 
-    let mut test_validator_genesis = TestValidatorGenesis::default();
+impl ValidatorContext {
+    fn rpc_client(&self) -> RpcClient {
+        self.test_validator.get_async_rpc_client()
+    }
 
-    let slots_per_epoch = 50;
-    test_validator_genesis.epoch_schedule(EpochSchedule::custom(
-        slots_per_epoch,
-        slots_per_epoch,
-        /* enable_warmup_epochs = */ false,
-    ));
+    pub async fn wait_for_next_epoch(&self) {
+        println!();
+        let progress_bar = progress_bar();
+        let rpc_client = self.rpc_client();
 
-    test_validator_genesis
-        .add_accounts([(feature_id, feature::create_account(&Feature::default(), 42))]);
+        let start_slot = rpc_client.get_slot().await.unwrap();
+        let mut remaining_slots = SLOTS_PER_EPOCH - (start_slot % SLOTS_PER_EPOCH);
 
-    test_validator_genesis.add_upgradeable_programs_with_path(&[UpgradeableProgramInfo {
-        program_id: source_program_id,
-        loader: bpf_loader_upgradeable::id(),
-        program_path: source_program_path,
-        upgrade_authority: Pubkey::new_unique(),
-    }]);
+        progress_bar.set_message("Waiting for next epoch...");
 
-    test_validator_genesis.start_async().await
+        while remaining_slots > 1 {
+            let this_slot = rpc_client.get_slot().await.unwrap();
+            remaining_slots = SLOTS_PER_EPOCH - (this_slot % SLOTS_PER_EPOCH);
+            progress_bar.inc(2);
+            std::thread::sleep(std::time::Duration::from_millis(500));
+        }
+
+        let epoch = rpc_client.get_epoch_info().await.unwrap().epoch;
+        progress_bar.finish_with_message(format!("Epoch: {}", epoch));
+        println!();
+    }
+
+    pub async fn get_account(&self, address: &Pubkey) -> Option<Account> {
+        self.rpc_client().get_account(address).await.ok()
+    }
+
+    pub async fn start(feature_id: Pubkey, source_program_id: Pubkey, elf_path: PathBuf) -> Self {
+        solana_logger::setup();
+
+        let epoch_schedule = EpochSchedule::custom(SLOTS_PER_EPOCH, SLOTS_PER_EPOCH, false);
+        let accounts = [(feature_id, feature::create_account(&Feature::default(), 42))];
+        let programs = &[UpgradeableProgramInfo {
+            program_id: source_program_id,
+            loader: bpf_loader_upgradeable::id(),
+            program_path: elf_path,
+            upgrade_authority: Pubkey::new_unique(),
+        }];
+
+        let (test_validator, payer) = TestValidatorGenesis::default()
+            .epoch_schedule(epoch_schedule)
+            .add_accounts(accounts)
+            .add_upgradeable_programs_with_path(programs)
+            .start_async()
+            .await;
+
+        Self {
+            test_validator,
+            payer,
+        }
+    }
 }
