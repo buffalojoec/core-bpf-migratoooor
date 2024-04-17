@@ -21,7 +21,7 @@ pub struct ValidatorContext {
 }
 
 impl ValidatorContext {
-    fn rpc_client(&self) -> RpcClient {
+    pub fn rpc_client(&self) -> RpcClient {
         self.test_validator.get_async_rpc_client()
     }
 

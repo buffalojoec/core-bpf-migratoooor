@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let context = ValidatorContext::start(feature_id, source_program_id, elf_path).await;
 
             output("Running tests on the builtin...");
-            harness.test();
+            harness.test(&context);
 
             context.wait_for_next_epoch().await;
 
@@ -57,12 +57,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             output("Migration successful.");
 
             output("Running tests on the BPF version...");
-            harness.test();
+            harness.test(&context);
 
             context.wait_for_next_epoch().await;
 
             output("Running tests (again) on the BPF version...");
-            harness.test();
+            harness.test(&context);
 
             output("Test complete!");
         }
