@@ -44,7 +44,13 @@ impl Program {
     }
 
     pub fn elf_path(&self) -> PathBuf {
-        PathBuf::from("./elfs/test_elf.so")
+        match self {
+            Program::AddressLookupTable => {
+                PathBuf::from("./elfs/solana_address_lookup_table_program.so")
+            }
+            Program::Config => PathBuf::from("./elfs/solana_config_program.so"),
+            Program::FeatureGate => PathBuf::from("./elfs/solana_feature_gate_program.so"),
+        }
     }
 
     pub fn harness(&self) -> Box<dyn Harness> {
