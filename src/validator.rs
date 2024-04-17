@@ -2,7 +2,6 @@ use {
     crate::output::progress_bar,
     solana_client::nonblocking::rpc_client::RpcClient,
     solana_sdk::{
-        account::Account,
         bpf_loader_upgradeable,
         epoch_schedule::EpochSchedule,
         feature::{self, Feature},
@@ -45,10 +44,6 @@ impl ValidatorContext {
         let epoch = rpc_client.get_epoch_info().await.unwrap().epoch;
         progress_bar.finish_with_message(format!("Epoch: {}", epoch));
         println!();
-    }
-
-    pub async fn get_account(&self, address: &Pubkey) -> Option<Account> {
-        self.rpc_client().get_account(address).await.ok()
     }
 
     pub async fn start(feature_id: Pubkey, source_program_id: Pubkey, elf_path: PathBuf) -> Self {

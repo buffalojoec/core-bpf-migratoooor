@@ -1,11 +1,5 @@
 use {
-    crate::harness::{
-        AddressLookupTableProgramTestHarness, ConfigProgramTestHarness, FeatureGateProgramHarness,
-        Harness,
-    },
-    clap::ValueEnum,
-    solana_sdk::pubkey::Pubkey,
-    std::path::PathBuf,
+    crate::test_suite::TestContext, clap::ValueEnum, solana_sdk::pubkey::Pubkey, std::path::PathBuf,
 };
 
 #[derive(Clone, Debug, ValueEnum)]
@@ -53,11 +47,12 @@ impl Program {
         }
     }
 
-    pub fn harness(&self) -> Box<dyn Harness> {
+    pub async fn test(&self, _context: &TestContext<'_>) {
+        let _program_id = self.id();
         match self {
-            Program::AddressLookupTable => Box::new(AddressLookupTableProgramTestHarness),
-            Program::Config => Box::new(ConfigProgramTestHarness),
-            Program::FeatureGate => Box::new(FeatureGateProgramHarness),
+            Program::AddressLookupTable => println!("Testing AddressLookupTableProgram"),
+            Program::Config => println!("Testing ConfigProgram"),
+            Program::FeatureGate => println!("Testing FeatureGateProgram"),
         }
     }
 }
