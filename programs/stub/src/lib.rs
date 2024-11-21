@@ -8,8 +8,9 @@
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
+    incinerator,
     instruction::{AccountMeta, Instruction},
-    program::{invoke, set_return_data},
+    program::invoke,
     program_error::ProgramError,
     pubkey::Pubkey,
     rent::Rent,
@@ -38,11 +39,16 @@ pub fn write(
     )
 }
 
-pub fn emit(program_id: &Pubkey, data: &[u8]) -> Instruction {
-    let mut input = vec![0; data.len() + 1];
-    input[0] = 1;
-    input[1..].copy_from_slice(data);
-    Instruction::new_with_bytes(*program_id, &input, Vec::default())
+pub fn burn(program_id: &Pubkey, target_address: &Pubkey) -> Instruction {
+    Instruction::new_with_bytes(
+        *program_id,
+        &[1],
+        vec![
+            AccountMeta::new(*target_address, true),
+            AccountMeta::new(incinerator::id(), false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+    )
 }
 
 pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
@@ -83,10 +89,26 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
 
             Ok(())
         }
-        Some((&1, rest)) => {
-            // Emit:
-            // * Set the return data to the provided input.
-            set_return_data(rest);
+        Some((&1, _)) => {
+            // Burn:
+            // * Burn all of the lamports in the target account.
+            let accounts_iter = &mut accounts.iter();
+            let target_info = next_account_info(accounts_iter)?;
+            let incinerator_info = next_account_info(accounts_iter)?;
+            let _system_program_info = next_account_info(accounts_iter)?;
+
+            if !target_info.is_signer {
+                Err(ProgramError::MissingRequiredSignature)?
+            }
+
+            invoke(
+                &system_instruction::transfer(
+                    target_info.key,
+                    incinerator_info.key,
+                    target_info.lamports(),
+                ),
+                &[target_info.clone(), incinerator_info.clone()],
+            )?;
 
             Ok(())
         }

@@ -6,17 +6,14 @@ members = [ "cli",
 resolver = "2"
 
 [workspace.dependencies]
-base64 = "0.22.1"
 cbm-harness = { path = "./harness", version = "0.1.0" }
 cbm-program-activator = { path = "./programs/activator", version = "0.1.0" }
 cbm-program-stub = { path = "./programs/stub", version = "0.1.0" }
 solana-logger = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
 solana-program = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
 solana-rpc = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
-solana-rpc-client-api = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
 solana-sdk = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
 solana-test-validator = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
-solana-transaction-status = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
 
 [patch.crates-io]
 solana-program = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }

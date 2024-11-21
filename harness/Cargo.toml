@@ -4,13 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-base64 = { workspace = true }
 cbm-program-activator = { workspace = true }
 cbm-program-stub = { workspace = true }
 indicatif = "0.17.8"
 solana-logger = { workspace = true }
 solana-rpc = { workspace = true }
-solana-rpc-client-api = { workspace = true }
 solana-sdk = { workspace = true }
 solana-test-validator = { workspace = true }
-solana-transaction-status = { workspace = true }

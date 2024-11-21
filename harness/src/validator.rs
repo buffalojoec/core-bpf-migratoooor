@@ -4,9 +4,8 @@ use {
     crate::file::FileReader,
     indicatif::{ProgressBar, ProgressStyle},
     solana_rpc::rpc::JsonRpcConfig,
-    solana_rpc_client_api::config::RpcTransactionConfig,
     solana_sdk::{
-        account::{AccountSharedData, WritableAccount},
+        account::{Account, AccountSharedData, WritableAccount},
         bpf_loader_upgradeable::{self, UpgradeableLoaderState},
         commitment_config::CommitmentConfig,
         epoch_schedule::EpochSchedule,
@@ -16,10 +15,10 @@ use {
         rent::Rent,
         signature::{Keypair, Signature},
         signer::Signer,
+        system_instruction,
         transaction::Transaction,
     },
     solana_test_validator::{TestValidator, TestValidatorGenesis, UpgradeableProgramInfo},
-    solana_transaction_status::UiTransactionEncoding,
     std::path::PathBuf,
 };
 
@@ -36,16 +35,16 @@ pub struct ValidatorContext {
 }
 
 impl ValidatorContext {
-    pub async fn get_account(&self, account_id: &Pubkey) -> solana_sdk::account::Account {
+    pub async fn get_account(&self, account_id: &Pubkey) -> Option<Account> {
         self.test_validator
             .get_async_rpc_client()
             .get_account(account_id)
             .await
-            .unwrap()
+            .ok()
     }
 
     pub async fn assert_program_is_builtin(&self, program_id: &Pubkey) {
-        let account = self.get_account(program_id).await;
+        let account = self.get_account(program_id).await.unwrap();
         assert!(
             account.owner == solana_sdk::native_loader::id(),
             "Program is not a builtin"
@@ -53,7 +52,7 @@ impl ValidatorContext {
     }
 
     pub async fn assert_program_is_bpf(&self, program_id: &Pubkey) {
-        let account = self.get_account(program_id).await;
+        let account = self.get_account(program_id).await.unwrap();
         assert!(
             account.owner == solana_sdk::bpf_loader_upgradeable::id(),
             "Program is not BPF"
@@ -107,49 +106,30 @@ impl ValidatorContext {
         )
         .await;
 
-        let target_account = self.get_account(&target.pubkey()).await;
+        let target_account = self.get_account(&target.pubkey()).await.unwrap();
 
         assert_eq!(target_account.owner, *program_id);
         assert_eq!(target_account.data, write_data);
     }
 
-    #[allow(deprecated)]
-    pub async fn run_stub_test_emit(&self, program_id: &Pubkey) {
-        let emit_data = Pubkey::new_unique().to_bytes();
-        let signature = self
-            .send_transaction(
-                &[cbm_program_stub::emit(program_id, &emit_data)],
-                &self.payer.pubkey(),
-                &[&self.payer],
-            )
-            .await;
+    pub async fn run_stub_test_burn(&self, program_id: &Pubkey) {
+        let target = Keypair::new();
+        self.send_transaction(
+            &[
+                system_instruction::transfer(&self.payer.pubkey(), &target.pubkey(), 100_000_000),
+                cbm_program_stub::burn(program_id, &target.pubkey()),
+            ],
+            &self.payer.pubkey(),
+            &[&self.payer, &target],
+        )
+        .await;
 
-        let return_data = self
-            .test_validator
-            .get_async_rpc_client()
-            .get_transaction_with_config(
-                &signature,
-                RpcTransactionConfig {
-                    encoding: Some(UiTransactionEncoding::Base64),
-                    commitment: Some(CommitmentConfig::confirmed()),
-                    max_supported_transaction_version: None,
-                },
-            )
-            .await
-            .unwrap()
-            .transaction
-            .meta
-            .unwrap()
-            .return_data
-            .unwrap();
-
-        assert_eq!(return_data.program_id, program_id.to_string());
-        assert_eq!(base64::decode(return_data.data.0).unwrap(), emit_data);
+        assert!(self.get_account(&target.pubkey()).await.is_none());
     }
 
     pub async fn run_stub_tests(&self, program_id: &Pubkey) {
         self.run_stub_test_write(program_id).await;
-        // self.run_stub_test_emit(program_id).await;
+        self.run_stub_test_burn(program_id).await;
     }
 
     pub async fn wait_for_next_slot(&self) {

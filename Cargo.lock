@@ -892,16 +892,13 @@ dependencies = [
 name = "cbm-harness"
 version = "0.1.0"
 dependencies = [
- "base64 0.22.1",
  "cbm-program-activator",
  "cbm-program-stub",
  "indicatif",
  "solana-logger",
  "solana-rpc",
- "solana-rpc-client-api",
  "solana-sdk",
  "solana-test-validator",
- "solana-transaction-status",
 ]
 
 [[package]]
