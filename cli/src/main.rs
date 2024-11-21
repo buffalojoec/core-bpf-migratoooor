@@ -91,7 +91,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .await;
 
             output("Checking to see if program is currently a builtin...");
-            context.assert_program_is_builtin(&program_id).await;
+            if program_id != solana_sdk::feature::id() {
+                context.assert_program_is_builtin(&program_id).await;
+            }
             output("It is.");
 
             output(&format!("Activating feature {}...", feature_id));
