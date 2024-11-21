@@ -17,29 +17,32 @@ use solana_program::{
     sysvar::Sysvar,
 };
 
-solana_program::declare_id!("CBMStub111111111111111111111111111111111111");
-
 solana_program::entrypoint!(process);
 
-pub fn write(target_address: &Pubkey, payer_address: &Pubkey, data: &[u8]) -> Instruction {
-    let mut input = Vec::with_capacity(data.len() + 1);
+pub fn write(
+    program_id: &Pubkey,
+    target_address: &Pubkey,
+    payer_address: &Pubkey,
+    data: &[u8],
+) -> Instruction {
+    let mut input = vec![0; data.len() + 1];
     input[1..].copy_from_slice(data);
     Instruction::new_with_bytes(
-        crate::id(),
+        *program_id,
         &input,
         vec![
-            AccountMeta::new(*target_address, false),
+            AccountMeta::new(*target_address, true),
             AccountMeta::new(*payer_address, true),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
     )
 }
 
-pub fn emit(data: &[u8]) -> Instruction {
-    let mut input = Vec::with_capacity(data.len() + 1);
+pub fn emit(program_id: &Pubkey, data: &[u8]) -> Instruction {
+    let mut input = vec![0; data.len() + 1];
     input[0] = 1;
     input[1..].copy_from_slice(data);
-    Instruction::new_with_bytes(crate::id(), &input, Vec::default())
+    Instruction::new_with_bytes(*program_id, &input, Vec::default())
 }
 
 pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {

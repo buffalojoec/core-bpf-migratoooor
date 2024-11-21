@@ -1,6 +1,5 @@
 use {
-    indicatif::{ProgressBar, ProgressStyle},
-    solana_sdk::pubkey::Pubkey,
+    solana_sdk::{feature_set::FEATURE_NAMES, pubkey::Pubkey},
     std::io::Write,
     termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor},
 };
@@ -16,13 +15,21 @@ fn write(stdout: &mut StandardStream, msg: &str, color: Option<Color>) {
     write!(stdout, "{}", msg).unwrap();
 }
 
-pub fn title(program_id: &Pubkey) {
+#[rustfmt::skip]
+pub fn title_stub_test(feature_id: &Pubkey, buffer_address: &Pubkey) {
+    let feature_description: String = FEATURE_NAMES.get(feature_id).expect("Feature not found").chars().take(160).collect();
+    
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
     writeln!(&mut stdout).unwrap();
-    writeln!(&mut stdout, "=============================================").unwrap();
-    writeln!(&mut stdout, "    Core BPF Migration Test").unwrap();
-    writeln!(&mut stdout, "    Program: {}", program_id).unwrap();
-    writeln!(&mut stdout, "=============================================").unwrap();
+    writeln!(&mut stdout, "    =============================================").unwrap();
+    writeln!(&mut stdout, "    Core BPF Migration Test: Stub Test").unwrap();
+    writeln!(&mut stdout).unwrap();
+    writeln!(&mut stdout, "    Description   : {}", feature_description).unwrap();
+    writeln!(&mut stdout).unwrap();
+    writeln!(&mut stdout, "    Feature ID    : {}", feature_id).unwrap();
+    writeln!(&mut stdout).unwrap();
+    writeln!(&mut stdout, "    Buffer Address: {}", buffer_address).unwrap();
+    writeln!(&mut stdout, "    =============================================").unwrap();
     writeln!(&mut stdout).unwrap();
     writeln!(&mut stdout).unwrap();
     stdout.reset().unwrap();
@@ -32,21 +39,10 @@ pub fn output(msg: &str) {
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
     writeln!(&mut stdout).unwrap();
     write(&mut stdout, "  [", None);
-    write(&mut stdout, "CBPFM TEST", Some(Color::Magenta));
+    write(&mut stdout, "CBM TEST", Some(Color::Magenta));
     write(&mut stdout, "]: ", None);
     write(&mut stdout, msg, None);
     writeln!(&mut stdout).unwrap();
     writeln!(&mut stdout).unwrap();
     stdout.reset().unwrap();
-}
-
-pub fn progress_bar() -> ProgressBar {
-    let bar = ProgressBar::new(100);
-    bar.set_style(
-        ProgressStyle::default_bar()
-            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.green/blue}] ({pos}%) {msg}")
-            .unwrap()
-            .progress_chars("=>-"),
-    );
-    bar
 }
