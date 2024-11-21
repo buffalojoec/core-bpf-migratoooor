@@ -1,0 +1,10 @@
+[package]
+name = "cbm-harness"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cbm-program-activator = { workspace = true }
+solana-logger = { workspace = true }
+solana-sdk = { workspace = true }
+solana-test-validator = { workspace = true }
