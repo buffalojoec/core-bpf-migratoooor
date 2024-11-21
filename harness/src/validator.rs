@@ -165,22 +165,25 @@ impl ValidatorContext {
 
     pub async fn wait_for_next_epoch(&self) {
         println!();
-        let progress_bar = progress_bar();
+        let progress_bar = progress_bar("Waiting for next epoch...");
         let rpc_client = self.test_validator.get_async_rpc_client();
 
-        let slots_per_epoch = self.slots_per_epoch;
-        let get_remaining_slots = |this_slot: u64| slots_per_epoch - (this_slot % slots_per_epoch);
+        let get_slots_remaining = |this_slot: u64| {
+            let slots_remaining = self.slots_per_epoch - (this_slot % self.slots_per_epoch);
+            let progress_bar_incr =
+                (self.slots_per_epoch - slots_remaining) * 100 / self.slots_per_epoch;
+            progress_bar.set_message(format!("Slots remaining: {}", slots_remaining));
+            progress_bar.set_position(progress_bar_incr);
+            slots_remaining
+        };
 
-        let start_slot = rpc_client.get_slot().await.unwrap();
-        let mut remaining_slots = get_remaining_slots(start_slot);
-
-        progress_bar.set_message("Waiting for next epoch...");
-
-        while remaining_slots > 1 {
+        loop {
             let this_slot = rpc_client.get_slot().await.unwrap();
-            remaining_slots = get_remaining_slots(this_slot);
-            progress_bar.inc(2);
-            std::thread::sleep(std::time::Duration::from_millis(500));
+            std::thread::sleep(std::time::Duration::from_millis(250));
+            if get_slots_remaining(this_slot) == 1 {
+                std::thread::sleep(std::time::Duration::from_millis(500));
+                break;
+            }
         }
 
         let epoch = rpc_client.get_epoch_info().await.unwrap().epoch;
@@ -269,13 +272,17 @@ fn elf_path(elf_dir: &str, program_name: &str) -> PathBuf {
     PathBuf::from(elf_dir).join(format!("{}.so", program_name))
 }
 
-pub fn progress_bar() -> ProgressBar {
+pub fn progress_bar(prefix: &'static str) -> ProgressBar {
     let bar = ProgressBar::new(100);
     bar.set_style(
         ProgressStyle::default_bar()
-            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.green/blue}] ({pos}%) {msg}")
+            .template(
+                "{prefix} {spinner:.green} [{elapsed_precise}] [{bar:40.green/blue}] ({pos}%) \
+                 {msg}",
+            )
             .unwrap()
             .progress_chars("=>-"),
     );
+    bar.set_prefix(prefix);
     bar
 }
