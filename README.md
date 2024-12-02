@@ -1,7 +1,19 @@
 # Core BPF Migratoooor
 
+Can run "stub tests", which simulate a migration on a test validator, or
+"conformance tests", which clone an ELF from a deployed buffer and run it
+against the builtin within Firedancer's conformance tooling.
+
+Stub tests:
+
 ```
-./run.sh <program>
+cargo run --release --bin cbm -- stub-test <program>
+```
+
+Conformance tests:
+
+```
+cargo run --release --bin cbm -- conformance-test <program> --cluster mainnet-beta
 ```
 
 Supported programs:

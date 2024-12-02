@@ -1,4 +1,5 @@
 [workspace]
+exclude = ["solana-conformance/impl/solfuzz-agave"]
 members = [ "cli",
     "harness",
     "programs/*"
@@ -12,6 +13,7 @@ cbm-program-stub = { path = "./programs/stub", version = "0.1.0" }
 solana-logger = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
 solana-program = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
 solana-rpc = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
+solana-rpc-client = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
 solana-sdk = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
 solana-test-validator = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
 

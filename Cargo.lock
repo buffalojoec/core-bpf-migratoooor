@@ -883,6 +883,7 @@ version = "0.1.0"
 dependencies = [
  "cbm-harness",
  "clap 4.5.21",
+ "solana-rpc-client",
  "solana-sdk",
  "termcolor",
  "tokio",

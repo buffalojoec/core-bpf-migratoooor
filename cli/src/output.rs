@@ -35,6 +35,22 @@ pub fn title_stub_test(feature_id: &Pubkey, buffer_address: &Pubkey) {
     stdout.reset().unwrap();
 }
 
+#[rustfmt::skip]
+pub fn title_conformance_test(cluster: &str, buffer_address: &Pubkey) {
+    let mut stdout = StandardStream::stdout(ColorChoice::Always);
+    writeln!(&mut stdout).unwrap();
+    writeln!(&mut stdout, "    =============================================").unwrap();
+    writeln!(&mut stdout, "    Core BPF Migration Test: Conformance Test").unwrap();
+    writeln!(&mut stdout).unwrap();
+    writeln!(&mut stdout, "    Buffer Address: {}", buffer_address).unwrap();
+    writeln!(&mut stdout).unwrap();
+    writeln!(&mut stdout, "    Cloning From  : {}", cluster).unwrap();
+    writeln!(&mut stdout, "    =============================================").unwrap();
+    writeln!(&mut stdout).unwrap();
+    writeln!(&mut stdout).unwrap();
+    stdout.reset().unwrap();
+}
+
 pub fn output(msg: &str) {
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
     writeln!(&mut stdout).unwrap();

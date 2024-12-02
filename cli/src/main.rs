@@ -1,17 +1,25 @@
 //! CLI to test Core BPF program migration on feature activations.
 
+mod client;
+mod cluster;
 mod cmd;
 mod output;
+mod program;
 
 use {
     crate::{
-        cmd::build_programs,
-        output::{output, title_stub_test},
+        client::CbmRpcClient,
+        cluster::Cluster,
+        cmd::{
+            build_conformance_targets, build_conformance_test_environment, build_programs,
+            conformance_passed, run_conformance,
+        },
+        output::{output, title_conformance_test, title_stub_test},
+        program::Program,
     },
     cbm_harness::validator::{MigrationTarget, ValidatorContext},
     clap::{Parser, Subcommand},
-    solana_sdk::pubkey::Pubkey,
-    std::str::FromStr,
+    std::{fs::File, io::Write, path::Path},
 };
 
 const ELF_DIRECTORY: &str = "elfs";
@@ -27,31 +35,24 @@ enum SubCommand {
     /// The stub program has a deterministic processor, so the test suite in
     /// the program's crate can be used to ensure the migration was successful.
     StubTest {
-        /// The program ID of the builtin.
-        program_id: String,
-        /// The feature ID for the migration.
-        feature_id: String,
-        /// The buffer address where the ELF should be stored.
-        buffer_address: String,
+        /// The program to test.
+        program: Program,
         /// Slots per epoch (defaults to 50).
         #[arg(short, long, default_value = "50")]
         slots_per_epoch: u64,
     },
-    // /// Test the migration of a builtin program to Core BPF using a custom
-    // /// program ELF.
-    // ///
-    // /// (Coming soon)
-    // LiveTest {
-    //     /// The feature ID for the migration.
-    //     feature_id: String,
-    //     /// The buffer address where the ELF should be stored.
-    //     buffer_address: String,
-    //     /// The path to the ELF file.
-    //     elf_path: String,
-    //     /// Slots per epoch (defaults to 50).
-    //     #[arg(short, long, default_value = "50")]
-    //     slots_per_epoch: u64,
-    // },
+    /// Test a buffer account's ELF against the original builtin using
+    /// Firedancer's conformance tooling.
+    ///
+    /// Clones the ELF from the buffer account and runs the conformance tests
+    /// against the original builtin.
+    ConformanceTest {
+        /// The program to test.
+        program: Program,
+        /// The cluster to clone the buffer account data from.
+        #[arg(short, long, default_value = "mainnet-beta")]
+        cluster: Cluster,
+    },
 }
 
 #[derive(Parser)]
@@ -64,14 +65,12 @@ struct Cli {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match Cli::parse().command {
         SubCommand::StubTest {
-            program_id,
-            feature_id,
-            buffer_address,
+            program,
             slots_per_epoch,
         } => {
-            let program_id = Pubkey::from_str(&program_id).expect("Invalid program ID");
-            let feature_id = Pubkey::from_str(&feature_id).expect("Invalid feature ID");
-            let buffer_address = Pubkey::from_str(&buffer_address).expect("Invalid buffer address");
+            let program_id = program.program_id();
+            let feature_id = program.feature_gate();
+            let buffer_address = program.buffer_address();
 
             title_stub_test(&feature_id, &buffer_address);
 
@@ -119,7 +118,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             output("Test complete! Woohoo!");
         }
+        SubCommand::ConformanceTest { program, cluster } => {
+            let buffer_address = program.buffer_address();
+
+            let cluster_string = cluster.to_string();
+            let cluster_rpc_client = CbmRpcClient::new(cluster.url());
+
+            title_conformance_test(&cluster_string, &buffer_address);
+
+            output(&format!("Cloning ELF from {}...", &cluster_string));
+            let elf = cluster_rpc_client
+                .clone_elf_from_buffer_account(&buffer_address)
+                .await;
+
+            output("Initializing test environment...");
+            build_conformance_test_environment(&program);
+
+            output("Bulding targets...");
+            write_elf_to_file(elf, &program.elf_name());
+            build_conformance_targets(&program);
+
+            output("Running conformance tests...");
+            run_conformance(&program);
+
+            if conformance_passed() {
+                output("Test complete! Woohoo!");
+            } else {
+                panic!("Test failed! Oh no!");
+            }
+        }
     }
 
     Ok(())
+}
+
+fn write_elf_to_file(elf: Vec<u8>, elf_name: &str) {
+    std::fs::create_dir_all(ELF_DIRECTORY).unwrap();
+    let path = Path::new(ELF_DIRECTORY).join(elf_name);
+    let mut file = File::create(path).expect("Failed to create ELF file");
+    file.write_all(&elf).expect("Failed to write ELF to file");
 }

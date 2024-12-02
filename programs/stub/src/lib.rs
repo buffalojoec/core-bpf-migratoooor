@@ -18,6 +18,7 @@ use solana_program::{
     sysvar::Sysvar,
 };
 
+#[cfg(feature = "sbf-entrypoint")]
 solana_program::entrypoint!(process);
 
 pub fn write(

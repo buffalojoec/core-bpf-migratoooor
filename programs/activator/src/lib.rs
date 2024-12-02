@@ -19,6 +19,7 @@ const FEATURE_GATE_PROGRAM_ID: Pubkey =
 
 solana_program::declare_id!("CBMActivator1111111111111111111111111111111");
 
+#[cfg(feature = "sbf-entrypoint")]
 solana_program::entrypoint!(process);
 
 pub fn activate_feature(feature_id: &Pubkey) -> Instruction {
