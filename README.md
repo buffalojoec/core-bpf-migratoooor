@@ -4,16 +4,24 @@ Can run "stub tests", which simulate a migration on a test validator, or
 "conformance tests", which clone an ELF from a deployed buffer and run it
 against the builtin within Firedancer's conformance tooling.
 
+Fixtures tests are similar to conformance but without comparing to a builtin.
+Instead, fixtures are just run against the ELF.
+
 Stub tests:
 
 ```
-cargo run --release --bin cbm -- stub-test <program>
+cargo run --release --bin cbm -- stub <program>
 ```
+
+Fixtures tests:
+
+```
+cargo run --release --bin cbm -- fixtures <program> --cluster mainnet-beta
 
 Conformance tests:
 
 ```
-cargo run --release --bin cbm -- conformance-test <program> --cluster mainnet-beta
+cargo run --release --bin cbm -- conformance <program> --cluster mainnet-beta
 ```
 
 Supported programs:

@@ -122,14 +122,14 @@ pub fn build_conformance_test_environment(program: &Program) {
         .expect("Failed to install dependencies");
 }
 
-pub fn build_conformance_targets(program: &Program) {
+pub fn build_conformance_target_builtin() {
     // Make a directory for targets.
     Command::new("mkdir")
         .current_dir(PATH_CONFORMANCE)
         .arg("-p")
         .arg(PATH_TARGETS_DIR)
         .status()
-        .expect("Failed to install dependencies");
+        .expect("Failed to create directory");
 
     // Build the builtin target.
     Command::new("cargo")
@@ -149,6 +149,16 @@ pub fn build_conformance_targets(program: &Program) {
         ),
         &format!("{}/{}/builtin.so", PATH_CONFORMANCE, PATH_TARGETS_DIR),
     );
+}
+
+pub fn build_conformance_target_bpf(program: &Program) {
+    // Make a directory for targets.
+    Command::new("mkdir")
+        .current_dir(PATH_CONFORMANCE)
+        .arg("-p")
+        .arg(PATH_TARGETS_DIR)
+        .status()
+        .expect("Failed to create directory");
 
     std::env::set_var("CORE_BPF_PROGRAM_ID", program.program_id().to_string());
     std::env::set_var(
@@ -177,6 +187,44 @@ pub fn build_conformance_targets(program: &Program) {
         ),
         &format!("{}/{}/core_bpf.so", PATH_CONFORMANCE, PATH_TARGETS_DIR),
     );
+
+    std::env::remove_var("CORE_BPF_PROGRAM_ID");
+    std::env::remove_var("CORE_BPF_TARGET");
+    std::env::remove_var("FORCE_RECOMPILE");
+}
+
+pub fn run_fixtures(program: &Program) {
+    let i_path = format!(
+        "{}/{}/{}/{}",
+        cwd().display(),
+        PATH_CONFORMANCE,
+        PATH_FIXTURES,
+        program.fixtures_path()
+    );
+    let t_path = format!(
+        "{}/{}/{}/core_bpf.so",
+        cwd().display(),
+        PATH_CONFORMANCE,
+        PATH_TARGETS_DIR
+    );
+
+    let output = Command::new("bash")
+        .arg("-c")
+        .arg(format!(
+            "cd {} && source test_suite_env/bin/activate && solana-test-suite exec-fixtures -i {} -t {}",
+            PATH_CONFORMANCE,
+            i_path,
+            t_path
+        ))
+        .output()
+        .expect("Failed to run fixtures tests");
+
+    let output = core::str::from_utf8(&output.stdout).unwrap();
+    println!("{}", output);
+
+    if output.contains("Failed tests:") {
+        panic!("Test failed! Oh no!");
+    }
 }
 
 pub fn run_conformance(program: &Program) {
@@ -211,15 +259,13 @@ pub fn run_conformance(program: &Program) {
         ))
         .status()
         .expect("Failed to run conformance tests");
-}
 
-pub fn conformance_passed() -> bool {
     let failed_protos_path = Path::new(PATH_CONFORMANCE).join("test_results/failed_protobufs");
-    if failed_protos_path.is_dir() {
-        std::fs::read_dir(failed_protos_path)
+    if failed_protos_path.is_dir()
+        && !std::fs::read_dir(failed_protos_path)
             .map(|mut entries| entries.next().is_none())
             .unwrap_or(false)
-    } else {
-        true
+    {
+        panic!("Test failed! Oh no!");
     }
 }

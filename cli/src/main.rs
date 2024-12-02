@@ -11,10 +11,10 @@ use {
         client::CbmRpcClient,
         cluster::Cluster,
         cmd::{
-            build_conformance_targets, build_conformance_test_environment, build_programs,
-            conformance_passed, run_conformance,
+            build_conformance_target_bpf, build_conformance_target_builtin,
+            build_conformance_test_environment, build_programs, run_conformance, run_fixtures,
         },
-        output::{output, title_conformance_test, title_stub_test},
+        output::{output, title_conformance_test, title_fixtures_test, title_stub_test},
         program::Program,
     },
     cbm_harness::validator::{MigrationTarget, ValidatorContext},
@@ -34,19 +34,30 @@ enum SubCommand {
     ///
     /// The stub program has a deterministic processor, so the test suite in
     /// the program's crate can be used to ensure the migration was successful.
-    StubTest {
+    Stub {
         /// The program to test.
         program: Program,
         /// Slots per epoch (defaults to 50).
         #[arg(short, long, default_value = "50")]
         slots_per_epoch: u64,
     },
+    /// Test a buffer account's ELF against a suite of Firedancer fixtures.
+    ///
+    /// Clones the ELF from the buffer account and runs the fixtures against
+    /// the original builtin.
+    Fixtures {
+        /// The program to test.
+        program: Program,
+        /// The cluster to clone the buffer account data from.
+        #[arg(short, long, default_value = "mainnet-beta")]
+        cluster: Cluster,
+    },
     /// Test a buffer account's ELF against the original builtin using
     /// Firedancer's conformance tooling.
     ///
     /// Clones the ELF from the buffer account and runs the conformance tests
     /// against the original builtin.
-    ConformanceTest {
+    Conformance {
         /// The program to test.
         program: Program,
         /// The cluster to clone the buffer account data from.
@@ -64,7 +75,7 @@ struct Cli {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match Cli::parse().command {
-        SubCommand::StubTest {
+        SubCommand::Stub {
             program,
             slots_per_epoch,
         } => {
@@ -118,7 +129,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             output("Test complete! Woohoo!");
         }
-        SubCommand::ConformanceTest { program, cluster } => {
+        SubCommand::Fixtures { program, cluster } => {
+            let buffer_address = program.buffer_address();
+
+            let cluster_string = cluster.to_string();
+            let cluster_rpc_client = CbmRpcClient::new(cluster.url());
+
+            title_fixtures_test(&cluster_string, &buffer_address);
+
+            output(&format!("Cloning ELF from {}...", &cluster_string));
+            let elf = cluster_rpc_client
+                .clone_elf_from_buffer_account(&buffer_address)
+                .await;
+
+            output("Initializing test environment...");
+            build_conformance_test_environment(&program);
+
+            output("Bulding target...");
+            write_elf_to_file(elf, &program.elf_name());
+            build_conformance_target_bpf(&program);
+
+            output("Running fixtures...");
+            run_fixtures(&program);
+
+            output("Test complete! Woohoo!");
+        }
+        SubCommand::Conformance { program, cluster } => {
             let buffer_address = program.buffer_address();
 
             let cluster_string = cluster.to_string();
@@ -136,16 +172,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             output("Bulding targets...");
             write_elf_to_file(elf, &program.elf_name());
-            build_conformance_targets(&program);
+            build_conformance_target_builtin();
+            build_conformance_target_bpf(&program);
 
             output("Running conformance tests...");
             run_conformance(&program);
 
-            if conformance_passed() {
-                output("Test complete! Woohoo!");
-            } else {
-                panic!("Test failed! Oh no!");
-            }
+            output("Test complete! Woohoo!");
         }
     }
 
