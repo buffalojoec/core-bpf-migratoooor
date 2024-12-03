@@ -62,6 +62,13 @@ impl Program {
         }
     }
 
+    pub fn repository(&self) -> String {
+        format!(
+            "https://github.com/solana-program/{}.git",
+            &self.to_string()
+        )
+    }
+
     pub fn skip_conformance_fixtures(&self) -> Vec<&str> {
         match self {
             Self::AddressLookupTable => vec![

@@ -36,7 +36,7 @@ pub fn title_stub_test(feature_id: &Pubkey, buffer_address: &Pubkey) {
 }
 
 #[rustfmt::skip]
-pub fn title_fixtures_test(cluster: &str, buffer_address: &Pubkey) {
+pub fn title_fixtures_test(cluster: &str, buffer_address: &Pubkey, use_mollusk_fixtures: bool) {
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
     writeln!(&mut stdout).unwrap();
     writeln!(&mut stdout, "    =============================================").unwrap();
@@ -45,6 +45,9 @@ pub fn title_fixtures_test(cluster: &str, buffer_address: &Pubkey) {
     writeln!(&mut stdout, "    Buffer Address: {}", buffer_address).unwrap();
     writeln!(&mut stdout).unwrap();
     writeln!(&mut stdout, "    Cloning From  : {}", cluster).unwrap();
+    writeln!(&mut stdout).unwrap();
+    let fixtures = if use_mollusk_fixtures { "Mollusk" } else { "Firedancer" };
+    writeln!(&mut stdout, "    Fixtures      : {}", fixtures).unwrap();
     writeln!(&mut stdout, "    =============================================").unwrap();
     writeln!(&mut stdout).unwrap();
     writeln!(&mut stdout).unwrap();
@@ -52,7 +55,7 @@ pub fn title_fixtures_test(cluster: &str, buffer_address: &Pubkey) {
 }
 
 #[rustfmt::skip]
-pub fn title_conformance_test(cluster: &str, buffer_address: &Pubkey) {
+pub fn title_conformance_test(cluster: &str, buffer_address: &Pubkey, use_mollusk_fixtures: bool) {
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
     writeln!(&mut stdout).unwrap();
     writeln!(&mut stdout, "    =============================================").unwrap();
@@ -61,6 +64,9 @@ pub fn title_conformance_test(cluster: &str, buffer_address: &Pubkey) {
     writeln!(&mut stdout, "    Buffer Address: {}", buffer_address).unwrap();
     writeln!(&mut stdout).unwrap();
     writeln!(&mut stdout, "    Cloning From  : {}", cluster).unwrap();
+    writeln!(&mut stdout).unwrap();
+    let fixtures = if use_mollusk_fixtures { "Mollusk" } else { "Firedancer" };
+    writeln!(&mut stdout, "    Fixtures      : {}", fixtures).unwrap();
     writeln!(&mut stdout, "    =============================================").unwrap();
     writeln!(&mut stdout).unwrap();
     writeln!(&mut stdout).unwrap();

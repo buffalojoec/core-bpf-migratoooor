@@ -17,6 +17,7 @@ Fixtures tests:
 
 ```
 cargo run --release --bin cbm -- fixtures <program> --cluster mainnet-beta
+```
 
 Conformance tests:
 
