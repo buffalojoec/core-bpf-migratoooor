@@ -53,6 +53,9 @@ enum SubCommand {
         /// Whether or not to use Mollusk fixtures. Uses Firedancer instead.
         #[arg(short, long, default_value = "false")]
         use_mollusk_fixtures: bool,
+        /// Whether or not to skip installing the Firedancer tool suite.
+        #[arg(short, long, default_value = "false")]
+        skip_setup: bool,
     },
     /// Test a buffer account's ELF against the original builtin using
     /// Firedancer's conformance tooling.
@@ -68,6 +71,9 @@ enum SubCommand {
         /// Whether or not to use Mollusk fixtures. Uses Firedancer instead.
         #[arg(short, long, default_value = "false")]
         use_mollusk_fixtures: bool,
+        /// Whether or not to skip installing the Firedancer tool suite.
+        #[arg(short, long, default_value = "false")]
+        skip_setup: bool,
     },
 }
 
@@ -139,6 +145,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             program,
             cluster,
             use_mollusk_fixtures,
+            skip_setup,
         } => {
             let buffer_address = program.buffer_address();
 
@@ -153,8 +160,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .await;
 
             output("Initializing test environment...");
-            let mut handler =
-                ConformanceHandler::setup(&program, ELF_DIRECTORY, use_mollusk_fixtures);
+            let mut handler = if skip_setup {
+                ConformanceHandler::no_setup(&program, ELF_DIRECTORY, use_mollusk_fixtures)
+            } else {
+                ConformanceHandler::setup(&program, ELF_DIRECTORY, use_mollusk_fixtures)
+            };
 
             output("Bulding target...");
             write_elf_to_file(elf, &program.elf_name());
@@ -169,6 +179,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             program,
             cluster,
             use_mollusk_fixtures,
+            skip_setup,
         } => {
             let buffer_address = program.buffer_address();
 
@@ -183,8 +194,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .await;
 
             output("Initializing test environment...");
-            let mut handler =
-                ConformanceHandler::setup(&program, ELF_DIRECTORY, use_mollusk_fixtures);
+            let mut handler = if skip_setup {
+                ConformanceHandler::no_setup(&program, ELF_DIRECTORY, use_mollusk_fixtures)
+            } else {
+                ConformanceHandler::setup(&program, ELF_DIRECTORY, use_mollusk_fixtures)
+            };
 
             output("Bulding targets...");
             write_elf_to_file(elf, &program.elf_name());

@@ -35,6 +35,24 @@ impl ConformanceHandler {
         }
     }
 
+    pub fn no_setup(program: &Program, elf_directory: &str, use_mollusk_fixtures: bool) -> Self {
+        Self::new(
+            program,
+            elf_directory,
+            if use_mollusk_fixtures {
+                Path::new(PATH_CONFORMANCE)
+                    .join(PATH_PROGRAM_REPO)
+                    .join("program")
+                    .join("fuzz")
+                    .join("blob")
+            } else {
+                Path::new(PATH_CONFORMANCE)
+                    .join(PATH_TEST_VECTORS)
+                    .join(program.fixtures_path())
+            },
+        )
+    }
+
     pub fn setup(program: &Program, elf_directory: &str, use_mollusk_fixtures: bool) -> Self {
         // Clone harnesses.
         git_clone(
