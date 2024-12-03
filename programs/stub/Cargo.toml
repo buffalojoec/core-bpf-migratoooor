@@ -1,5 +1,5 @@
 [package]
-name = "cbm-program-stub"
+name = "cbmt-program-stub"
 version = "0.1.0"
 edition = "2021"
 

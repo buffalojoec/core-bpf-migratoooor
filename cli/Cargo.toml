@@ -1,11 +1,11 @@
 [package]
-name = "cbm-cli"
+name = "core-bpf-migration-test-cli"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-cbm-program-activator = { workspace = true }
-cbm-program-stub = { workspace = true }
+cbmt-program-activator = { workspace = true }
+cbmt-program-stub = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 indicatif = { workspace = true }
 solana-logger = { workspace = true }
@@ -17,5 +17,5 @@ termcolor = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 
 [[bin]]
-name = "cbm"
+name = "cbmt"
 path = "src/main.rs"

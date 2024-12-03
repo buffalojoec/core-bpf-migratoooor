@@ -7,9 +7,8 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-cbm-cli = { path = "./cli", version = "0.1.0" }
-cbm-program-activator = { path = "./programs/activator", version = "0.1.0" }
-cbm-program-stub = { path = "./programs/stub", version = "0.1.0" }
+cbmt-program-activator = { path = "./programs/activator", version = "0.1.0" }
+cbmt-program-stub = { path = "./programs/stub", version = "0.1.0" }
 clap = "4.5.4"
 indicatif = "0.17.8"
 solana-logger = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }

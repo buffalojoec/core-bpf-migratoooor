@@ -84,7 +84,7 @@ impl ValidatorContext {
 
     pub async fn activate_feature(&self, feature_id: &Pubkey) {
         self.send_transaction(
-            &[cbm_program_activator::activate_feature(feature_id)],
+            &[cbmt_program_activator::activate_feature(feature_id)],
             &self.payer.pubkey(),
             &[&self.payer],
         )
@@ -95,7 +95,7 @@ impl ValidatorContext {
         let target = Keypair::new();
         let write_data = Pubkey::new_unique().to_bytes();
         self.send_transaction(
-            &[cbm_program_stub::write(
+            &[cbmt_program_stub::write(
                 program_id,
                 &target.pubkey(),
                 &self.payer.pubkey(),
@@ -117,7 +117,7 @@ impl ValidatorContext {
         self.send_transaction(
             &[
                 system_instruction::transfer(&self.payer.pubkey(), &target.pubkey(), 100_000_000),
-                cbm_program_stub::burn(program_id, &target.pubkey()),
+                cbmt_program_stub::burn(program_id, &target.pubkey()),
             ],
             &self.payer.pubkey(),
             &[&self.payer, &target],
@@ -195,9 +195,9 @@ impl ValidatorContext {
         });
 
         let bpf_programs = &[UpgradeableProgramInfo {
-            program_id: cbm_program_activator::id(),
+            program_id: cbmt_program_activator::id(),
             loader: bpf_loader_upgradeable::id(),
-            program_path: elf_path(elf_directory, "cbm_program_activator"),
+            program_path: elf_path(elf_directory, "cbmt_program_activator"),
             upgrade_authority: Pubkey::new_unique(),
         }];
 
@@ -225,7 +225,7 @@ impl ValidatorContext {
 fn staged_feature_account() -> AccountSharedData {
     let space = Feature::size_of();
     let lamports = Rent::default().minimum_balance(space);
-    AccountSharedData::new(lamports, space, &cbm_program_activator::id())
+    AccountSharedData::new(lamports, space, &cbmt_program_activator::id())
 }
 
 // Create a buffer account with the provided ELF.

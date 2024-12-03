@@ -1,4 +1,4 @@
-# Core BPF Migratoooor
+# Core BPF Migration Test CLI
 
 Can run "stub tests", which simulate a migration on a test validator, or
 "conformance tests", which clone an ELF from a deployed buffer and run it
@@ -10,19 +10,19 @@ Instead, fixtures are just run against the ELF.
 Stub tests:
 
 ```
-cargo run --release --bin cbm -- stub <program>
+cargo run --release --bin cbmt -- stub <program>
 ```
 
 Fixtures tests:
 
 ```
-cargo run --release --bin cbm -- fixtures <program> --cluster mainnet-beta
+cargo run --release --bin cbmt -- fixtures <program> --cluster mainnet-beta
 ```
 
 Conformance tests:
 
 ```
-cargo run --release --bin cbm -- conformance <program> --cluster mainnet-beta
+cargo run --release --bin cbmt -- conformance <program> --cluster mainnet-beta
 ```
 
 Supported programs:

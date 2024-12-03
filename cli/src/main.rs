@@ -1,6 +1,5 @@
 //! CLI to test Core BPF program migration on feature activations.
 
-mod client;
 mod cluster;
 mod conformance;
 mod file;
@@ -10,7 +9,6 @@ mod validator;
 
 use {
     crate::{
-        client::CbmRpcClient,
         cluster::Cluster,
         conformance::ConformanceHandler,
         output::{output, title_conformance_test, title_fixtures_test, title_stub_test},
@@ -18,6 +16,8 @@ use {
         validator::{MigrationTarget, ValidatorContext},
     },
     clap::{Parser, Subcommand},
+    solana_rpc_client::nonblocking::rpc_client::RpcClient,
+    solana_sdk::bpf_loader_upgradeable::UpgradeableLoaderState,
     std::{fs::File, io::Write, path::Path, process::Command},
 };
 
@@ -107,7 +107,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &[MigrationTarget {
                     feature_id,
                     buffer_address,
-                    elf_name: "cbm_program_stub",
+                    elf_name: "cbmt_program_stub",
                 }],
                 ELF_DIRECTORY,
                 slots_per_epoch,
@@ -149,17 +149,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             use_mollusk_fixtures,
             skip_setup,
         } => {
-            let buffer_address = program.buffer_address();
+            title_fixtures_test(
+                &cluster.to_string(),
+                &program.buffer_address(),
+                use_mollusk_fixtures,
+            );
 
-            let cluster_string = cluster.to_string();
-            let cluster_rpc_client = CbmRpcClient::new(cluster.url());
-
-            title_fixtures_test(&cluster_string, &buffer_address, use_mollusk_fixtures);
-
-            output(&format!("Cloning ELF from {}...", &cluster_string));
-            let elf = cluster_rpc_client
-                .clone_elf_from_buffer_account(&buffer_address)
-                .await;
+            output(&format!("Cloning ELF from {}...", &cluster.to_string()));
+            let elf = clone_elf_from_buffer_account(&cluster, &program).await;
 
             output("Initializing test environment...");
             let mut handler = if skip_setup {
@@ -183,17 +180,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             use_mollusk_fixtures,
             skip_setup,
         } => {
-            let buffer_address = program.buffer_address();
+            title_conformance_test(
+                &cluster.to_string(),
+                &program.buffer_address(),
+                use_mollusk_fixtures,
+            );
 
-            let cluster_string = cluster.to_string();
-            let cluster_rpc_client = CbmRpcClient::new(cluster.url());
-
-            title_conformance_test(&cluster_string, &buffer_address, use_mollusk_fixtures);
-
-            output(&format!("Cloning ELF from {}...", &cluster_string));
-            let elf = cluster_rpc_client
-                .clone_elf_from_buffer_account(&buffer_address)
-                .await;
+            output(&format!("Cloning ELF from {}...", &cluster.to_string()));
+            let elf = clone_elf_from_buffer_account(&cluster, &program).await;
 
             output("Initializing test environment...");
             let mut handler = if skip_setup {
@@ -228,6 +222,18 @@ fn cargo_build_sbf(manifest_path: &str) {
         .arg(ELF_DIRECTORY)
         .status()
         .expect("Failed to build crate");
+}
+
+async fn clone_elf_from_buffer_account(cluster: &Cluster, program: &Program) -> Vec<u8> {
+    let rpc_client = RpcClient::new(cluster.url().to_string());
+    let account = rpc_client
+        .get_account(&program.buffer_address())
+        .await
+        .expect("Account not found");
+    if account.data.len() < UpgradeableLoaderState::size_of_buffer_metadata() {
+        panic!("Buffer account is too small");
+    }
+    account.data[UpgradeableLoaderState::size_of_buffer_metadata()..].to_vec()
 }
 
 fn write_elf_to_file(elf: Vec<u8>, elf_name: &str) {
