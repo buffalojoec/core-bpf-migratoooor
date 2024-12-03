@@ -3,8 +3,10 @@
 mod client;
 mod cluster;
 mod conformance;
+mod file;
 mod output;
 mod program;
+mod validator;
 
 use {
     crate::{
@@ -13,8 +15,8 @@ use {
         conformance::ConformanceHandler,
         output::{output, title_conformance_test, title_fixtures_test, title_stub_test},
         program::Program,
+        validator::{MigrationTarget, ValidatorContext},
     },
-    cbm_harness::validator::{MigrationTarget, ValidatorContext},
     clap::{Parser, Subcommand},
     std::{fs::File, io::Write, path::Path, process::Command},
 };

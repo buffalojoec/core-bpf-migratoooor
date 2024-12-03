@@ -4,12 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-cbm-harness = { workspace = true }
-clap = { version = "4.5.4", features = ["derive"] }
+cbm-program-activator = { workspace = true }
+cbm-program-stub = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+indicatif = { workspace = true }
+solana-logger = { workspace = true }
+solana-rpc = { workspace = true }
 solana-rpc-client = { workspace = true }
 solana-sdk = { workspace = true }
-termcolor = "1.4.1"
-tokio = { version = "1.37.0", features = ["full"] }
+solana-test-validator = { workspace = true }
+termcolor = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 
 [[bin]]
 name = "cbm"

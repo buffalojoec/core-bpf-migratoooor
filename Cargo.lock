@@ -881,25 +881,17 @@ dependencies = [
 name = "cbm-cli"
 version = "0.1.0"
 dependencies = [
- "cbm-harness",
- "clap 4.5.21",
- "solana-rpc-client",
- "solana-sdk",
- "termcolor",
- "tokio",
-]
-
-[[package]]
-name = "cbm-harness"
-version = "0.1.0"
-dependencies = [
  "cbm-program-activator",
  "cbm-program-stub",
+ "clap 4.5.21",
  "indicatif",
  "solana-logger",
  "solana-rpc",
+ "solana-rpc-client",
  "solana-sdk",
  "solana-test-validator",
+ "termcolor",
+ "tokio",
 ]
 
 [[package]]

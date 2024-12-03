@@ -1,21 +1,25 @@
 [workspace]
 exclude = ["solana-conformance/impl/solfuzz-agave"]
-members = [ "cli",
-    "harness",
+members = [
+    "cli",
     "programs/*"
 ]
 resolver = "2"
 
 [workspace.dependencies]
-cbm-harness = { path = "./harness", version = "0.1.0" }
+cbm-cli = { path = "./cli", version = "0.1.0" }
 cbm-program-activator = { path = "./programs/activator", version = "0.1.0" }
 cbm-program-stub = { path = "./programs/stub", version = "0.1.0" }
+clap = "4.5.4"
+indicatif = "0.17.8"
 solana-logger = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
 solana-program = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
 solana-rpc = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
 solana-rpc-client = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
 solana-sdk = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
 solana-test-validator = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
+termcolor = "1.4.1"
+tokio = "1.37.0"
 
 [patch.crates-io]
 solana-program = { git = "https://github.com/buffalojoec/solana", branch = "joec-test-validator-genesis" }
